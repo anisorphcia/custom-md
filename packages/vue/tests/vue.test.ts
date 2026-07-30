@@ -1,0 +1,87 @@
+import { defineProtocol } from "@semantic-md/protocol";
+import { mount } from "@vue/test-utils";
+import { defineComponent, h, onMounted, onUnmounted } from "vue";
+import { z } from "zod";
+import { describe, expect, it } from "vitest";
+import { SemanticMarkdown } from "../src";
+
+const protocol = defineProtocol({
+  version: "1",
+  nodes: {
+    action: {
+      kind: "inline",
+      schema: z.object({ name: z.string() }),
+      fallback: "children",
+      renderPending: true,
+    },
+  },
+});
+
+describe("SemanticMarkdown", () => {
+  it("renders Markdown, custom components, and action events", async () => {
+    const Action = defineComponent({
+      props: ["context"],
+      setup(props, { slots }) {
+        return () =>
+          h(
+            "button",
+            {
+              onClick: () => props.context.requestAction({ name: "test" }),
+            },
+            slots.default?.(),
+          );
+      },
+    });
+    const wrapper = mount(SemanticMarkdown, {
+      props: {
+        content: '# Hello\n\n:action[Run]{name="run"}',
+        protocol,
+        components: { action: Action },
+      },
+    });
+    expect(wrapper.get("h1").text()).toBe("Hello");
+    await wrapper.get("button").trigger("click");
+    expect(wrapper.emitted("action")?.[0]).toEqual([{ name: "test" }]);
+  });
+
+  it("does not create anchors for dangerous links", () => {
+    const wrapper = mount(SemanticMarkdown, {
+      props: {
+        content: "[visible](javascript:alert(1))",
+        protocol,
+      },
+    });
+    expect(wrapper.find("a").exists()).toBe(false);
+    expect(wrapper.text()).toContain("visible");
+  });
+
+  it("preserves custom component instances for stable node IDs", async () => {
+    let mounts = 0;
+    let unmounts = 0;
+    const Action = defineComponent({
+      setup(_props, { slots }) {
+        onMounted(() => {
+          mounts += 1;
+        });
+        onUnmounted(() => {
+          unmounts += 1;
+        });
+        return () => h("span", slots.default?.());
+      },
+    });
+    const { createStreamingMarkdownSession } = await import("@semantic-md/core");
+    const session = createStreamingMarkdownSession({ protocol });
+    session.push(':action[Run]{name="run"}');
+    const wrapper = mount(SemanticMarkdown, {
+      props: {
+        document: session.getSnapshot(),
+        protocol,
+        components: { action: Action },
+      },
+    });
+    session.push("\n\n");
+    await wrapper.setProps({ document: session.getSnapshot() });
+    expect(mounts).toBe(1);
+    expect(unmounts).toBe(0);
+  });
+});

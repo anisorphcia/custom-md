@@ -1,0 +1,33 @@
+{
+  "name": "@semantic-md/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "benchmark": "vitest bench --run"
+  },
+  "dependencies": {
+    "@semantic-md/protocol": "workspace:*",
+    "remark-directive": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "fast-check": "^4.2.0",
+    "tsup": "^8.5.0",
+    "zod": "^3.25.76"
+  }
+}

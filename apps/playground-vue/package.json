@@ -1,0 +1,25 @@
+{
+  "name": "playground-vue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@semantic-md/core": "workspace:*",
+    "@semantic-md/example-protocol": "workspace:*",
+    "@semantic-md/protocol": "workspace:*",
+    "@semantic-md/vue": "workspace:*",
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.0.6",
+    "vue-tsc": "^3.0.4"
+  }
+}
