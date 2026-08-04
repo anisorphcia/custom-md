@@ -65,6 +65,8 @@ export function generateProtocolPrompt(protocol: SemanticProtocol): string {
     "",
     "Output standard Markdown. You may also use only the semantic nodes listed below.",
     "Never output JavaScript, expressions, style/class attributes, event handlers, or unsafe URLs.",
+    "When using a semantic node, output the directive syntax directly.",
+    "Never wrap semantic directives in backticks or fenced code blocks; backticks make them render as code instead of semantic UI.",
   ];
 
   for (const [name, definition] of Object.entries(protocol.nodes)) {
@@ -72,7 +74,7 @@ export function generateProtocolPrompt(protocol: SemanticProtocol): string {
     if (definition.description) {
       sections.push(definition.description);
     }
-    sections.push(`Syntax: \`${syntaxFor(name, definition)}\``);
+    sections.push(`Syntax (output without backticks): ${syntaxFor(name, definition)}`);
     const fields = schemaFields(definition.schema);
     if (fields.length > 0) {
       sections.push("Attributes:");
@@ -84,7 +86,7 @@ export function generateProtocolPrompt(protocol: SemanticProtocol): string {
       }
     }
     for (const example of definition.examples ?? []) {
-      sections.push(`Example: \`${example}\``);
+      sections.push(`Example (output without backticks): ${example}`);
     }
   }
 

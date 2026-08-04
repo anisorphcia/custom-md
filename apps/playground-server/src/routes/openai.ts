@@ -12,6 +12,10 @@ const RATE_LIMIT_MAX_REQUESTS = 10;
 
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 
+function shouldLogPrompt(): boolean {
+  return process.env.AI_LOG_PROMPT?.trim().toLowerCase() === "true";
+}
+
 let cachedProxyUrl: string | undefined;
 let cachedProxyAgent: ProxyAgent | undefined;
 
@@ -103,6 +107,8 @@ async function handleOpenAiStream(request: Request, response: Response): Promise
   const model = process.env.OPENAI_MODEL?.trim();
   const baseURL = process.env.OPENAI_BASE_URL?.trim();
   const abortController = new AbortController();
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
   const heartbeat = setInterval(() => writer.comment("heartbeat"), 15_000);
   const cleanup = (): void => {
     clearInterval(heartbeat);
@@ -129,8 +135,27 @@ async function handleOpenAiStream(request: Request, response: Response): Promise
       throw new Error(`问题不能超过 ${MAX_PROMPT_LENGTH} 个字符`);
     }
 
+    const instructions = [
+      "请使用简体中文回答。输出必须是可直接渲染的 Markdown。",
+      "在有助于表达时使用下方 Semantic Markdown 协议；不要解释协议本身。",
+      "输出 Semantic Markdown 节点时必须直接写 :name[...] 或 :::name 语法，严禁用反引号或代码块包裹，否则节点无法渲染。",
+      generateProtocolPrompt(demoProtocol),
+    ].join("\n\n");
+
+    if (shouldLogPrompt()) {
+      console.log(
+        `[ai:${requestId}] outbound prompt\n${JSON.stringify(
+          { baseURL, model, instructions, input: prompt },
+          null,
+          2,
+        )}`,
+      );
+    } else {
+      console.log(`[ai:${requestId}] request started model=${model}`);
+    }
+
     writer.event("meta", {
-      streamId: crypto.randomUUID(),
+      streamId: requestId,
       source: "openai",
       model,
       protocolVersion: demoProtocol.version,
@@ -140,11 +165,7 @@ async function handleOpenAiStream(request: Request, response: Response): Promise
     const stream = await client.responses.create(
       {
         model,
-        instructions: [
-          "请使用简体中文回答。输出必须是可直接渲染的 Markdown。",
-          "在有助于表达时使用下方 Semantic Markdown 协议；不要解释协议本身。",
-          generateProtocolPrompt(demoProtocol),
-        ].join("\n\n"),
+        instructions,
         input: prompt,
         reasoning: { effort: "low" },
         stream: true,
@@ -161,14 +182,21 @@ async function handleOpenAiStream(request: Request, response: Response): Promise
     }
 
     if (!writer.closed && !abortController.signal.aborted) {
+      console.log(
+        `[ai:${requestId}] request completed model=${model} chars=${totalChars} durationMs=${Date.now() - startedAt}`,
+      );
       writer.event("done", { totalChars, model });
       writer.close();
     }
   } catch (error: unknown) {
     if (!abortController.signal.aborted && !writer.closed) {
+      const message = formatOpenAiError(error);
+      console.error(
+        `[ai:${requestId}] request failed model=${model ?? "unconfigured"} durationMs=${Date.now() - startedAt} message=${message}`,
+      );
       writer.event("failure", {
         code: "OPENAI_ERROR",
-        message: formatOpenAiError(error),
+        message,
       });
       writer.close();
     }

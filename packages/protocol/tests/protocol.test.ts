@@ -55,5 +55,10 @@ describe("protocol", () => {
     expect(prompt).toContain("metric (inline)");
     expect(prompt).toContain("allowed: percent, count");
     expect(prompt).toContain("Never output JavaScript");
+    expect(prompt).toContain("Never wrap semantic directives in backticks");
+    expect(prompt).toContain(
+      'Example (output without backticks): :metric[12%]{value=12 unit="percent"}',
+    );
+    expect(prompt).not.toContain('`:metric[12%]{value=12 unit="percent"}`');
   });
 });

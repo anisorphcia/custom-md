@@ -41,6 +41,8 @@ cp .env.example .env
 如需运行真实 AI Demo，在 `.env` 中填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和
 `OPENAI_MODEL`。这三项均只由 Express 服务端读取，不会发送到浏览器。Demo 使用
 OpenAI 兼容的 Responses API，并通过 SSE 将输出逐段交给 React Playground 渲染。
+如需在服务端终端查看实际上送的完整 `instructions` 和 `input`，设置
+`AI_LOG_PROMPT=true`；日志可能包含用户输入，请勿在生产环境长期开启。
 
 ## 启动 Playground
 
