@@ -38,6 +38,10 @@ pnpm install
 cp .env.example .env
 ```
 
+如需运行真实 AI Demo，在 `.env` 中填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和
+`OPENAI_MODEL`。这三项均只由 Express 服务端读取，不会发送到浏览器。Demo 使用
+OpenAI 兼容的 Responses API，并通过 SSE 将输出逐段交给 React Playground 渲染。
+
 ## 启动 Playground
 
 ```bash
@@ -56,6 +60,7 @@ Server 提供：
 
 ```text
 GET /api/stream?scenario=full&speed=20&chunkMode=syntax-boundary&seed=1
+POST /api/openai/stream  # JSON: { "prompt": "你的问题" }
 GET /api/scenarios
 ```
 

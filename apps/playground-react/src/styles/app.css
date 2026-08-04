@@ -25,10 +25,14 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 32px; }
 .controls label { display: grid; gap: 6px; font-size: .72rem; font-weight: 700; letter-spacing: .06em; color: #496157; }
 .controls select, .controls input[type="range"] { min-height: 38px; border: 1px solid #bdc9c1; border-radius: 8px; background: #fff; }
 .controls select { padding: 0 10px; }
+.controls textarea { min-height: 72px; padding: 10px 12px; resize: vertical; border: 1px solid #bdc9c1; border-radius: 8px; background: #fff; }
+.controls .question-field { grid-column: span 2; }
 .controls .check { display: flex; align-items: center; padding-bottom: 10px; white-space: nowrap; }
 .button-row { display: flex; gap: 8px; grid-column: 1 / -1; }
 .button-row button { padding: 9px 18px; border: 1px solid #9dad9f; border-radius: 8px; color: #244235; background: transparent; }
 .button-row .primary { color: white; background: #1e6448; border-color: #1e6448; }
+.button-row .primary:disabled { cursor: not-allowed; opacity: .5; }
+.error-message { grid-column: 1 / -1; margin: 0; padding: 10px 12px; color: #8c3029; background: #fff0ed; border-radius: 8px; font-size: .84rem; }
 
 .workspace { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 1px solid #d5ddd6; background: #fffef9; }
 .debug-panel { min-width: 0; border-right: 1px solid #d5ddd6; border-bottom: 1px solid #d5ddd6; }

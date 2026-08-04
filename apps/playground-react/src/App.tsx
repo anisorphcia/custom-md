@@ -19,6 +19,7 @@ import { semanticComponents } from "./semantic-components";
 type ScenarioName = keyof typeof scenarios;
 type ChunkMode = "char" | "word" | "fixed" | "random" | "syntax-boundary";
 type ConnectionStatus = "idle" | "connecting" | "streaming" | "finished" | "error";
+type StreamSource = "simulation" | "openai";
 
 interface DeltaPayload {
   text: string;
@@ -29,6 +30,31 @@ interface EventEntry {
   text: string;
 }
 
+interface FailurePayload {
+  message: string;
+}
+
+interface SseEvent {
+  event: string;
+  data: string;
+}
+
+function extractSseEvents(buffer: string): { events: SseEvent[]; rest: string } {
+  const normalized = buffer.replaceAll("\r\n", "\n");
+  const blocks = normalized.split("\n\n");
+  const rest = blocks.pop() ?? "";
+  const events = blocks.flatMap((block) => {
+    let event = "message";
+    const data: string[] = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trimStart();
+      if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    return data.length > 0 ? [{ event, data: data.join("\n") }] : [];
+  });
+  return { events, rest };
+}
+
 function parseDelta(value: string): DeltaPayload | undefined {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -37,6 +63,20 @@ function parseDelta(value: string): DeltaPayload | undefined {
       "text" in parsed &&
       typeof parsed.text === "string"
       ? { text: parsed.text }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseFailure(value: string): FailurePayload | undefined {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" &&
+      parsed !== null &&
+      "message" in parsed &&
+      typeof parsed.message === "string"
+      ? { message: parsed.message }
       : undefined;
   } catch {
     return undefined;
@@ -65,6 +105,9 @@ function DebugPanel({
 
 export default function App() {
   const [scenario, setScenario] = useState<ScenarioName>("full");
+  const [source, setSource] = useState<StreamSource>("simulation");
+  const [question, setQuestion] = useState("情分析苹果2025年财报，并综合2024年财报对比，并给出专业的投资建议。");
+  const [errorMessage, setErrorMessage] = useState("");
   const [chunkMode, setChunkMode] = useState<ChunkMode>("syntax-boundary");
   const [speed, setSpeed] = useState(20);
   const [mode, setMode] = useState<StreamingMode>("balanced");
@@ -76,6 +119,7 @@ export default function App() {
   const [eventLog, setEventLog] = useState<EventEntry[]>([]);
   const nextEventId = useRef(1);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const requestAbortRef = useRef<AbortController | null>(null);
   const rawRef = useRef<HTMLPreElement | null>(null);
   const { document, diagnostics, status, push, finish, reset } =
     useSemanticMarkdown({
@@ -93,6 +137,7 @@ export default function App() {
   useEffect(
     () => () => {
       eventSourceRef.current?.close();
+      requestAbortRef.current?.abort();
     },
     [],
   );
@@ -100,6 +145,8 @@ export default function App() {
   function stop(): void {
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
+    requestAbortRef.current?.abort();
+    requestAbortRef.current = null;
     setConnection((current) => (current === "finished" ? current : "idle"));
   }
 
@@ -111,12 +158,17 @@ export default function App() {
     setEventLog([]);
     nextEventId.current = 1;
     setConnection("idle");
+    setErrorMessage("");
   }
 
   function start(): void {
     resetAll();
     setConnection("connecting");
     const baseUrl = import.meta.env.VITE_SSE_BASE_URL ?? "http://localhost:4100";
+    if (source === "openai") {
+      void startOpenAi(baseUrl);
+      return;
+    }
     const query = new URLSearchParams({
       scenario,
       speed: String(speed),
@@ -124,12 +176,12 @@ export default function App() {
       chunkSize: "12",
       seed: "1",
     });
-    const source = new EventSource(`${baseUrl}/api/stream?${query}`);
-    eventSourceRef.current = source;
-    source.addEventListener("meta", () => {
+    const stream = new EventSource(`${baseUrl}/api/stream?${query}`);
+    eventSourceRef.current = stream;
+    stream.addEventListener("meta", () => {
       setConnection("streaming");
     });
-    source.addEventListener("delta", (event) => {
+    stream.addEventListener("delta", (event) => {
       if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
         return;
       }
@@ -141,18 +193,87 @@ export default function App() {
       const update = push(payload.text);
       setPatchLog((current) => [...current, ...update.patches].slice(-200));
     });
-    source.addEventListener("done", () => {
+    stream.addEventListener("done", () => {
       const update = finish();
       setPatchLog((current) => [...current, ...update.patches].slice(-200));
       setConnection("finished");
-      source.close();
+      stream.close();
       eventSourceRef.current = null;
     });
-    source.onerror = () => {
+    stream.addEventListener("failure", (event) => {
+      const failure = event instanceof MessageEvent && typeof event.data === "string"
+        ? parseFailure(event.data)
+        : undefined;
+      setErrorMessage(failure?.message ?? "OpenAI 请求失败");
       setConnection("error");
-      source.close();
+      stream.close();
       eventSourceRef.current = null;
+    });
+    stream.onerror = () => {
+      if (stream.readyState === EventSource.CLOSED) {
+        setConnection((current) => current === "finished" ? current : "error");
+        setErrorMessage((current) => current || "无法连接 Playground Server");
+        eventSourceRef.current = null;
+      }
     };
+  }
+
+  async function startOpenAi(baseUrl: string): Promise<void> {
+    const controller = new AbortController();
+    requestAbortRef.current = controller;
+    let receivedDone = false;
+    try {
+      const response = await fetch(`${baseUrl}/api/openai/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: question }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => undefined) as FailurePayload | undefined;
+        throw new Error(payload?.message ?? `请求失败（HTTP ${response.status}）`);
+      }
+      if (!response.body) throw new Error("服务端没有返回流式响应");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const extracted = extractSseEvents(buffer);
+        buffer = extracted.rest;
+        for (const event of extracted.events) {
+          if (event.event === "meta") setConnection("streaming");
+          if (event.event === "delta") {
+            const payload = parseDelta(event.data);
+            if (payload) {
+              setRawText((current) => current + payload.text);
+              const update = push(payload.text);
+              setPatchLog((current) => [...current, ...update.patches].slice(-200));
+            }
+          }
+          if (event.event === "failure") {
+            throw new Error(parseFailure(event.data)?.message ?? "AI 请求失败");
+          }
+          if (event.event === "done") {
+            const update = finish();
+            setPatchLog((current) => [...current, ...update.patches].slice(-200));
+            setConnection("finished");
+            receivedDone = true;
+          }
+        }
+      }
+      if (!receivedDone) throw new Error("AI 响应在完成前中断");
+    } catch (error: unknown) {
+      if (!controller.signal.aborted) {
+        setConnection("error");
+        setErrorMessage(error instanceof Error ? error.message : "AI 请求失败");
+      }
+    } finally {
+      if (requestAbortRef.current === controller) requestAbortRef.current = null;
+    }
   }
 
   function logAction(action: SemanticActionRequest): void {
@@ -193,6 +314,20 @@ export default function App() {
       </header>
 
       <section className="controls" aria-label="Stream controls">
+        <label>
+          数据源
+          <select value={source} onChange={(event) => setSource(event.target.value as StreamSource)}>
+            <option value="simulation">模拟数据</option>
+            <option value="openai">真实 OpenAI</option>
+          </select>
+        </label>
+        {source === "openai" ? (
+          <label className="question-field">
+            问题
+            <textarea value={question} maxLength={8000} onChange={(event) => setQuestion(event.target.value)} />
+          </label>
+        ) : (
+          <>
         <label>
           场景
           <select value={scenario} onChange={(event) => setScenario(event.target.value as ScenarioName)}>
@@ -237,11 +372,16 @@ export default function App() {
           <input type="checkbox" checked={autoScroll} onChange={(event) => setAutoScroll(event.target.checked)} />
           自动滚动
         </label>
+          </>
+        )}
         <div className="button-row">
-          <button type="button" className="primary" onClick={start}>开始</button>
+          <button type="button" className="primary" onClick={start} disabled={source === "openai" && !question.trim()}>
+            {source === "openai" ? "询问 OpenAI" : "开始"}
+          </button>
           <button type="button" onClick={stop}>停止</button>
           <button type="button" onClick={resetAll}>重置</button>
         </div>
+        {errorMessage && <p className="error-message" role="alert">{errorMessage}</p>}
       </section>
 
       <section className="workspace">
