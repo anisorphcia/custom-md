@@ -96,7 +96,7 @@ export default function App() {
   const [scenario, setScenario] = useState<ScenarioName>("full");
   const [source, setSource] = useState<StreamSource>("simulation");
   const [question, setQuestion] = useState(
-    "情分析苹果2025年财报，并综合2024年财报对比，并给出专业的投资建议。",
+    "请分析小米汽车2025年财报，并综合2024年财报对比，并给出专业的分析报告",
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [chunkMode, setChunkMode] = useState<ChunkMode>("syntax-boundary");
