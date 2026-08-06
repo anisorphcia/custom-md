@@ -1,19 +1,8 @@
-import type {
-  AstPatch,
-  Diagnostic,
-  SemanticActionRequest,
-  StreamingMode,
-} from "@semantic-md/core";
+import type { AstPatch, Diagnostic, SemanticActionRequest, StreamingMode } from "@semantic-md/core";
 import { demoProtocol, scenarios } from "@semantic-md/example-protocol";
 import { generateProtocolPrompt } from "@semantic-md/protocol";
 import { SemanticMarkdown, useSemanticMarkdown } from "@semantic-md/react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { semanticComponents } from "./semantic-components";
 
 type ScenarioName = keyof typeof scenarios;
@@ -106,7 +95,9 @@ function DebugPanel({
 export default function App() {
   const [scenario, setScenario] = useState<ScenarioName>("full");
   const [source, setSource] = useState<StreamSource>("simulation");
-  const [question, setQuestion] = useState("情分析苹果2025年财报，并综合2024年财报对比，并给出专业的投资建议。");
+  const [question, setQuestion] = useState(
+    "情分析苹果2025年财报，并综合2024年财报对比，并给出专业的投资建议。",
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [chunkMode, setChunkMode] = useState<ChunkMode>("syntax-boundary");
   const [speed, setSpeed] = useState(20);
@@ -121,15 +112,14 @@ export default function App() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const requestAbortRef = useRef<AbortController | null>(null);
   const rawRef = useRef<HTMLPreElement | null>(null);
-  const { document, diagnostics, status, push, finish, reset } =
-    useSemanticMarkdown({
-      protocol: demoProtocol,
-      streamingMode: mode,
-    });
-  const prompt = useMemo(() => generateProtocolPrompt(demoProtocol), []);
+  const { document, diagnostics, status, push, finish, reset } = useSemanticMarkdown({
+    protocol: demoProtocol,
+    streamingMode: mode,
+  });
+  const prompt = generateProtocolPrompt(demoProtocol);
 
   useEffect(() => {
-    if (autoScroll && rawRef.current) {
+    if (autoScroll && rawRef.current && rawText.length > 0) {
       rawRef.current.scrollTop = rawRef.current.scrollHeight;
     }
   }, [autoScroll, rawText]);
@@ -201,9 +191,10 @@ export default function App() {
       eventSourceRef.current = null;
     });
     stream.addEventListener("failure", (event) => {
-      const failure = event instanceof MessageEvent && typeof event.data === "string"
-        ? parseFailure(event.data)
-        : undefined;
+      const failure =
+        event instanceof MessageEvent && typeof event.data === "string"
+          ? parseFailure(event.data)
+          : undefined;
       setErrorMessage(failure?.message ?? "OpenAI 请求失败");
       setConnection("error");
       stream.close();
@@ -211,7 +202,7 @@ export default function App() {
     });
     stream.onerror = () => {
       if (stream.readyState === EventSource.CLOSED) {
-        setConnection((current) => current === "finished" ? current : "error");
+        setConnection((current) => (current === "finished" ? current : "error"));
         setErrorMessage((current) => current || "无法连接 Playground Server");
         eventSourceRef.current = null;
       }
@@ -230,7 +221,9 @@ export default function App() {
         signal: controller.signal,
       });
       if (!response.ok) {
-        const payload = await response.json().catch(() => undefined) as FailurePayload | undefined;
+        const payload = (await response.json().catch(() => undefined)) as
+          | FailurePayload
+          | undefined;
         throw new Error(payload?.message ?? `请求失败（HTTP ${response.status}）`);
       }
       if (!response.body) throw new Error("服务端没有返回流式响应");
@@ -279,6 +272,7 @@ export default function App() {
   function logAction(action: SemanticActionRequest): void {
     const id = nextEventId.current;
     nextEventId.current += 1;
+    console.log(`[Action] ${JSON.stringify(action)}`);
     setEventLog((current) => [
       ...current,
       {
@@ -291,10 +285,7 @@ export default function App() {
   function logReference(id: string): void {
     const entryId = nextEventId.current;
     nextEventId.current += 1;
-    setEventLog((current) => [
-      ...current,
-      { id: entryId, text: `citation: ${id}` },
-    ]);
+    setEventLog((current) => [...current, { id: entryId, text: `citation: ${id}` }]);
   }
 
   return (
@@ -316,7 +307,10 @@ export default function App() {
       <section className="controls" aria-label="Stream controls">
         <label>
           数据源
-          <select value={source} onChange={(event) => setSource(event.target.value as StreamSource)}>
+          <select
+            value={source}
+            onChange={(event) => setSource(event.target.value as StreamSource)}
+          >
             <option value="simulation">模拟数据</option>
             <option value="openai">真实 OpenAI</option>
           </select>
@@ -324,64 +318,98 @@ export default function App() {
         {source === "openai" ? (
           <label className="question-field">
             问题
-            <textarea value={question} maxLength={8000} onChange={(event) => setQuestion(event.target.value)} />
+            <textarea
+              value={question}
+              maxLength={8000}
+              onChange={(event) => setQuestion(event.target.value)}
+            />
           </label>
         ) : (
           <>
-        <label>
-          场景
-          <select value={scenario} onChange={(event) => setScenario(event.target.value as ScenarioName)}>
-            {Object.keys(scenarios).map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          分片
-          <select value={chunkMode} onChange={(event) => setChunkMode(event.target.value as ChunkMode)}>
-            <option value="char">char</option>
-            <option value="word">word</option>
-            <option value="fixed">fixed</option>
-            <option value="random">random</option>
-            <option value="syntax-boundary">syntax-boundary</option>
-          </select>
-        </label>
-        <label>
-          速度 · {speed}ms
-          <input
-            type="range"
-            min="0"
-            max="200"
-            value={speed}
-            onChange={(event) => setSpeed(Number(event.target.value))}
-          />
-        </label>
-        <label>
-          模式
-          <select value={mode} onChange={(event) => setMode(event.target.value as StreamingMode)}>
-            <option value="conservative">conservative</option>
-            <option value="balanced">balanced</option>
-            <option value="optimistic">optimistic</option>
-          </select>
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={showPending} onChange={(event) => setShowPending(event.target.checked)} />
-          Pending
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={autoScroll} onChange={(event) => setAutoScroll(event.target.checked)} />
-          自动滚动
-        </label>
+            <label>
+              场景
+              <select
+                value={scenario}
+                onChange={(event) => setScenario(event.target.value as ScenarioName)}
+              >
+                {Object.keys(scenarios).map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              分片
+              <select
+                value={chunkMode}
+                onChange={(event) => setChunkMode(event.target.value as ChunkMode)}
+              >
+                <option value="char">char</option>
+                <option value="word">word</option>
+                <option value="fixed">fixed</option>
+                <option value="random">random</option>
+                <option value="syntax-boundary">syntax-boundary</option>
+              </select>
+            </label>
+            <label>
+              速度 · {speed}ms
+              <input
+                type="range"
+                min="0"
+                max="200"
+                value={speed}
+                onChange={(event) => setSpeed(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              模式
+              <select
+                value={mode}
+                onChange={(event) => setMode(event.target.value as StreamingMode)}
+              >
+                <option value="conservative">conservative</option>
+                <option value="balanced">balanced</option>
+                <option value="optimistic">optimistic</option>
+              </select>
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={showPending}
+                onChange={(event) => setShowPending(event.target.checked)}
+              />
+              Pending
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={autoScroll}
+                onChange={(event) => setAutoScroll(event.target.checked)}
+              />
+              自动滚动
+            </label>
           </>
         )}
         <div className="button-row">
-          <button type="button" className="primary" onClick={start} disabled={source === "openai" && !question.trim()}>
+          <button
+            type="button"
+            className="primary"
+            onClick={start}
+            disabled={source === "openai" && !question.trim()}
+          >
             {source === "openai" ? "询问 OpenAI" : "开始"}
           </button>
-          <button type="button" onClick={stop}>停止</button>
-          <button type="button" onClick={resetAll}>重置</button>
+          <button type="button" onClick={stop}>
+            停止
+          </button>
+          <button type="button" onClick={resetAll}>
+            重置
+          </button>
         </div>
-        {errorMessage && <p className="error-message" role="alert">{errorMessage}</p>}
+        {errorMessage && (
+          <p className="error-message" role="alert">
+            {errorMessage}
+          </p>
+        )}
       </section>
 
       <section className="workspace">
@@ -398,7 +426,9 @@ export default function App() {
           </div>
         </DebugPanel>
         <DebugPanel title="原始流" count={rawText.length}>
-          <pre ref={rawRef} data-testid="raw-stream">{rawText}</pre>
+          <pre ref={rawRef} data-testid="raw-stream">
+            {rawText}
+          </pre>
         </DebugPanel>
         <DebugPanel title="AST">
           <pre>{JSON.stringify(document, null, 2)}</pre>
@@ -414,7 +444,9 @@ export default function App() {
         </DebugPanel>
         <DebugPanel title="Action / 引用" count={eventLog.length}>
           <ol className="event-log">
-            {eventLog.map((event) => <li key={event.id}>{event.text}</li>)}
+            {eventLog.map((event) => (
+              <li key={event.id}>{event.text}</li>
+            ))}
           </ol>
         </DebugPanel>
       </section>

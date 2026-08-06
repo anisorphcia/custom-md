@@ -74,6 +74,13 @@ export function generateProtocolPrompt(protocol: SemanticProtocol): string {
     if (definition.description) {
       sections.push(definition.description);
     }
+    sections.push(`Output priority: ${definition.outputPriority ?? "optional"}`);
+    if (definition.usage) {
+      sections.push(`Use when: ${definition.usage}`);
+    }
+    if (definition.childrenDescription) {
+      sections.push(`Visible content: ${definition.childrenDescription}`);
+    }
     sections.push(`Syntax (output without backticks): ${syntaxFor(name, definition)}`);
     const fields = schemaFields(definition.schema);
     if (fields.length > 0) {
@@ -85,8 +92,17 @@ export function generateProtocolPrompt(protocol: SemanticProtocol): string {
         );
       }
     }
+    if (definition.constraints?.length) {
+      sections.push("Constraints:");
+      for (const constraint of definition.constraints) {
+        sections.push(`- ${constraint}`);
+      }
+    }
     for (const example of definition.examples ?? []) {
-      sections.push(`Example (output without backticks): ${example}`);
+      sections.push(`Valid example (output without backticks): ${example}`);
+    }
+    for (const antiExample of definition.antiExamples ?? []) {
+      sections.push(`Invalid example (never output): ${antiExample}`);
     }
   }
 
