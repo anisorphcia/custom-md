@@ -1,22 +1,37 @@
 export { demoProtocol } from "./protocol";
+export type { ScenarioName } from "./scenarios";
 export {
   basicScenario,
   codeScenario,
+  deliveryScenario,
+  financeScenario,
   fullScenario,
   getScenario,
+  incidentScenario,
   longScenario,
   malformedScenario,
+  researchScenario,
   scenarios,
   semanticScenario,
   tableScenario,
 } from "./scenarios";
-export type { ScenarioName } from "./scenarios";
 export type {
   ActionAttributes,
+  CashFlowAttributes,
   CitationAttributes,
   DecreaseAttributes,
   DemoProtocol,
+  EvidenceAttributes,
+  FinancialInsightAttributes,
+  FinancialMetricAttributes,
+  GuidanceAttributes,
+  IncidentAttributes,
   IncreaseAttributes,
+  MarginChangeAttributes,
+  MilestoneAttributes,
+  PeriodComparisonAttributes,
+  ProfitTransitionAttributes,
   RiskAttributes,
+  SegmentPerformanceAttributes,
   StatusAttributes,
 } from "./types";

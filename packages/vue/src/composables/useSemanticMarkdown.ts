@@ -7,14 +7,14 @@ import {
 } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
 import {
+  type MaybeRef,
   onScopeDispose,
+  type Ref,
   ref,
+  type ShallowRef,
   shallowRef,
   toValue,
   watch,
-  type MaybeRef,
-  type Ref,
-  type ShallowRef,
 } from "vue";
 
 export interface UseSemanticMarkdownOptions {
@@ -36,14 +36,11 @@ export interface UseSemanticMarkdownResult {
 export function useSemanticMarkdown(
   options: UseSemanticMarkdownOptions = {},
 ): UseSemanticMarkdownResult {
+  const initialMode = toValue(options.streamingMode);
   let session = createStreamingMarkdownSession({
     ...(options.protocol ? { protocol: options.protocol } : {}),
-    ...(toValue(options.streamingMode)
-      ? { mode: toValue(options.streamingMode) }
-      : {}),
-    ...(options.batchInterval !== undefined
-      ? { batchInterval: options.batchInterval }
-      : {}),
+    ...(initialMode ? { mode: initialMode } : {}),
+    ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
   });
   const document = shallowRef(session.getSnapshot());
   const patches = shallowRef<ParseUpdate["patches"]>([]);
@@ -56,9 +53,7 @@ export function useSemanticMarkdown(
       session = createStreamingMarkdownSession({
         ...(options.protocol ? { protocol: options.protocol } : {}),
         ...(streamingMode ? { mode: streamingMode } : {}),
-        ...(options.batchInterval !== undefined
-          ? { batchInterval: options.batchInterval }
-          : {}),
+        ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
       });
       document.value = session.getSnapshot();
       patches.value = [];

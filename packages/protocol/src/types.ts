@@ -1,11 +1,6 @@
 export type SemanticNodeKind = "inline" | "block" | "container";
 
-export type FallbackStrategy =
-  | "raw"
-  | "children"
-  | "remove"
-  | "blockquote"
-  | "error-component";
+export type FallbackStrategy = "raw" | "children" | "remove" | "blockquote" | "error-component";
 
 export interface ValidationSuccess<T> {
   success: true;
@@ -33,18 +28,24 @@ export interface SemanticNodeDefinition<TSchema extends SchemaLike = SchemaLike>
   fallback: FallbackStrategy;
   renderPending?: boolean;
   description?: string;
+  usage?: string;
+  constraints?: string[];
+  antiExamples?: string[];
+  childrenDescription?: string;
+  outputPriority?: "required" | "recommended" | "optional";
   examples?: string[];
 }
 
 export type SemanticNodeDefinitions = Record<string, SemanticNodeDefinition>;
 
-export interface SemanticProtocol<TNodes extends SemanticNodeDefinitions = SemanticNodeDefinitions> {
+export interface SemanticProtocol<
+  TNodes extends SemanticNodeDefinitions = SemanticNodeDefinitions,
+> {
   version: string;
   nodes: TNodes;
 }
 
-export type InferSchema<TSchema> =
-  TSchema extends SchemaLike<infer TOutput> ? TOutput : never;
+export type InferSchema<TSchema> = TSchema extends SchemaLike<infer TOutput> ? TOutput : never;
 
 export type InferNodeAttributes<
   TProtocol extends SemanticProtocol,

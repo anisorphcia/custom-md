@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@semantic-md/example-protocol": "workspace:*",
+    "@semantic-md/protocol": "workspace:*",
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "openai": "^6.49.0",
+    "undici": "^7.16.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
