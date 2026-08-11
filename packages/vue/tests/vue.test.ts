@@ -1,8 +1,8 @@
 import { defineProtocol } from "@semantic-md/protocol";
 import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
 import { defineComponent, h, onMounted, onUnmounted } from "vue";
 import { z } from "zod";
-import { describe, expect, it } from "vitest";
 import { SemanticMarkdown } from "../src";
 
 const protocol = defineProtocol({
@@ -12,6 +12,12 @@ const protocol = defineProtocol({
       kind: "inline",
       schema: z.object({ name: z.string() }),
       fallback: "children",
+      renderPending: true,
+    },
+    report: {
+      kind: "container",
+      schema: z.object({ label: z.string() }),
+      fallback: "blockquote",
       renderPending: true,
     },
   },
@@ -83,5 +89,28 @@ describe("SemanticMarkdown", () => {
     await wrapper.setProps({ document: session.getSnapshot() });
     expect(mounts).toBe(1);
     expect(unmounts).toBe(0);
+  });
+
+  it("renders text fragments safely while a semantic container streams", async () => {
+    const Report = defineComponent({
+      setup(_props, { slots }) {
+        return () => h("article", { class: "report" }, slots.default?.());
+      },
+    });
+    const { createStreamingMarkdownSession } = await import("@semantic-md/core");
+    const session = createStreamingMarkdownSession({ protocol });
+    session.push(':::report{label="收入"}\n收入');
+    const wrapper = mount(SemanticMarkdown, {
+      props: {
+        document: session.getSnapshot(),
+        protocol,
+        components: { report: Report },
+      },
+    });
+    expect(wrapper.get("article").text()).toBe("收入");
+
+    session.push("同比增长 12.5%\n:::");
+    await wrapper.setProps({ document: session.getSnapshot() });
+    expect(wrapper.get("article").text()).toContain("收入同比增长 12.5%");
   });
 });

@@ -1,7 +1,7 @@
 import type { MarkdownNode, SemanticRenderContext } from "@semantic-md/core";
-import { getNodeDefinition } from "@semantic-md/protocol";
 import type { SemanticProtocol } from "@semantic-md/protocol";
-import { Fragment, h, type VNode } from "vue";
+import { getNodeDefinition } from "@semantic-md/protocol";
+import { createVNode, Fragment, h, type VNode } from "vue";
 import type { MarkdownComponentMap, SemanticComponentMap } from "./types";
 
 export interface VueRenderOptions {
@@ -13,9 +13,7 @@ export interface VueRenderOptions {
 }
 
 function children(node: MarkdownNode, options: VueRenderOptions): VNode[] {
-  return "children" in node
-    ? node.children.map((child) => renderNode(child, options))
-    : [];
+  return "children" in node ? node.children.map((child) => renderNode(child, options)) : [];
 }
 
 function element(
@@ -26,18 +24,19 @@ function element(
 ): VNode {
   const customComponent = options.markdownComponents[node.type];
   const component = customComponent ?? fallback;
-  return h(
-    component,
-    {
-      key: node.id,
-      ...(customComponent ? { node } : {}),
-      ...properties,
-      ...(options.showPendingState && node.status === "pending"
-        ? { "data-semantic-pending": "true" }
-        : {}),
-    },
-    () => children(node, options),
-  );
+  const props = {
+    key: node.id,
+    ...(customComponent ? { node } : {}),
+    ...properties,
+    ...(options.showPendingState && node.status === "pending"
+      ? { "data-semantic-pending": "true" }
+      : {}),
+  };
+  const renderedChildren = children(node, options);
+
+  return customComponent
+    ? h(component, props, { default: () => renderedChildren })
+    : h(component, props, renderedChildren);
 }
 
 function semanticFallback(
@@ -48,30 +47,26 @@ function semanticFallback(
   const fallback = definition?.fallback ?? "children";
   const rendered = children(node, options);
   if (fallback === "remove") {
-    return h(Fragment, { key: node.id }, []);
+    return createVNode(Fragment, { key: node.id }, []);
   }
   if (fallback === "raw") {
-    return h(Fragment, { key: node.id }, node.raw ?? rendered);
+    return createVNode(Fragment, { key: node.id }, node.raw === undefined ? rendered : [node.raw]);
   }
   if (fallback === "blockquote") {
     return h("blockquote", { key: node.id }, rendered);
   }
   if (fallback === "error-component") {
-    return h(
-      "span",
-      { key: node.id, role: "alert", "data-semantic-error": node.name },
-      rendered,
-    );
+    return h("span", { key: node.id, role: "alert", "data-semantic-error": node.name }, rendered);
   }
-  return h(Fragment, { key: node.id }, rendered);
+  return createVNode(Fragment, { key: node.id }, rendered);
 }
 
 export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode {
   switch (node.type) {
     case "root":
-      return h(Fragment, { key: node.id }, children(node, options));
+      return createVNode(Fragment, { key: node.id }, children(node, options));
     case "text":
-      return h(Fragment, { key: node.id }, node.value);
+      return createVNode(Fragment, { key: node.id }, [node.value]);
     case "paragraph":
       return element(node, "p", options);
     case "heading":
@@ -109,7 +104,7 @@ export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode
             ...(node.title ? { title: node.title } : {}),
             rel: "noopener noreferrer",
           })
-        : h(Fragment, { key: node.id }, children(node, options));
+        : createVNode(Fragment, { key: node.id }, children(node, options));
     case "image":
       return node.safe && node.url
         ? h("img", {
@@ -118,7 +113,7 @@ export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode
             alt: node.alt,
             ...(node.title ? { title: node.title } : {}),
           })
-        : h(Fragment, { key: node.id }, node.alt);
+        : createVNode(Fragment, { key: node.id }, [node.alt]);
     case "thematicBreak":
       return h("hr", { key: node.id });
     case "table":
@@ -151,7 +146,7 @@ export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode
       );
     }
     case "unknown":
-      return h(Fragment, { key: node.id }, [
+      return createVNode(Fragment, { key: node.id }, [
         node.value ?? "",
         ...children(node, options),
       ]);

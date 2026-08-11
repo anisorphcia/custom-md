@@ -31,13 +31,9 @@ export function useSemanticMarkdown(
   const sessionOptions = {
     ...(options.protocol ? { protocol: options.protocol } : {}),
     ...(options.streamingMode ? { mode: options.streamingMode } : {}),
-    ...(options.batchInterval !== undefined
-      ? { batchInterval: options.batchInterval }
-      : {}),
+    ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
   };
-  const [initialSession] = useState(() =>
-    createStreamingMarkdownSession(sessionOptions),
-  );
+  const [initialSession] = useState(() => createStreamingMarkdownSession(sessionOptions));
   const sessionRef = useRef<StreamingMarkdownSession>(initialSession);
   const [document, setDocument] = useState(sessionRef.current.getSnapshot());
   const [patches, setPatches] = useState<ParseUpdate["patches"]>([]);
@@ -56,9 +52,7 @@ export function useSemanticMarkdown(
     sessionRef.current = createStreamingMarkdownSession({
       ...(options.protocol ? { protocol: options.protocol } : {}),
       ...(options.streamingMode ? { mode: options.streamingMode } : {}),
-      ...(options.batchInterval !== undefined
-        ? { batchInterval: options.batchInterval }
-        : {}),
+      ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
     });
     setDocument(sessionRef.current.getSnapshot());
     setPatches([]);

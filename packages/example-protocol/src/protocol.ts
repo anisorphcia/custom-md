@@ -7,9 +7,125 @@ const trendSchema = z.object({
   period: z.string().optional(),
 });
 
+const comparisonSchema = z.object({
+  label: z.string(),
+  value: z.coerce.number(),
+  unit: z.enum(["percent", "currency", "count", "ratio"]),
+  yoy: z.coerce.number().optional(),
+  qoq: z.coerce.number().optional(),
+  direction: z.enum(["up", "down", "flat"]),
+  sentiment: z.enum(["positive", "negative", "neutral"]),
+});
+
 export const demoProtocol = defineProtocol({
   version: "1.0.0",
   nodes: {
+    financialMetric: {
+      kind: "container",
+      schema: comparisonSchema,
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render a financial KPI card with period-over-period comparisons.",
+      usage: "A financial report states a KPI value and at least one meaningful comparison.",
+      childrenDescription: "A short professional interpretation of the metric and its drivers.",
+      outputPriority: "recommended",
+      constraints: [
+        "Use yoy only for同比 and qoq only for环比; values are signed percentages.",
+        "sentiment describes business impact, which may differ from numeric direction (for example, declining costs can be positive).",
+        "Do not calculate or infer missing comparisons unless the source provides enough audited values.",
+      ],
+      examples: [
+        ':::financialMetric{label="营业收入" value=2400 unit="currency" yoy=12.5 qoq=4.1 direction="up" sentiment="positive"}\n汽车业务放量带动收入增长。\n:::',
+      ],
+    },
+    guidance: {
+      kind: "container",
+      schema: z.object({
+        period: z.string(),
+        stance: z.enum(["raised", "maintained", "lowered"]),
+        confidence: z.enum(["high", "medium", "low"]),
+      }),
+      fallback: "blockquote",
+      description: "Render management guidance or an earnings outlook.",
+      usage:
+        "Management provides an explicit forward-looking target, range, or directional outlook.",
+      childrenDescription:
+        "The guidance, assumptions, and uncertainty in professional financial language.",
+      outputPriority: "recommended",
+      constraints: [
+        "Separate guidance from historical results.",
+        "Do not turn analyst speculation into management guidance.",
+      ],
+      examples: [
+        ':::guidance{period="2026 H2" stance="raised" confidence="medium"}\n管理层上调交付指引。\n:::',
+      ],
+    },
+    milestone: {
+      kind: "container",
+      schema: z.object({
+        owner: z.string(),
+        due: z.string(),
+        progress: z.coerce.number().min(0).max(100),
+        state: z.enum(["on-track", "at-risk", "blocked", "done"]),
+      }),
+      fallback: "blockquote",
+      description: "Render a project milestone with ownership, due date, and progress.",
+      usage: "A delivery milestone has an explicit owner, deadline, progress, and state.",
+      childrenDescription: "Milestone scope, current result, and next step.",
+      outputPriority: "recommended",
+      constraints: [
+        "progress must be 0 through 100.",
+        "Use blocked only when a concrete dependency prevents progress.",
+      ],
+      examples: [
+        ':::milestone{owner="支付组" due="2026-08-30" progress=72 state="at-risk"}\n联调等待渠道验收。\n:::',
+      ],
+    },
+    incident: {
+      kind: "container",
+      schema: z.object({
+        severity: z.enum(["SEV-1", "SEV-2", "SEV-3", "SEV-4"]),
+        state: z.enum(["investigating", "identified", "monitoring", "resolved"]),
+        startedAt: z.string(),
+        scope: z.string(),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render an operational incident briefing.",
+      usage:
+        "A production incident has a known severity, lifecycle state, start time, and impact scope.",
+      childrenDescription: "Impact, evidence, mitigation, and latest update without speculation.",
+      outputPriority: "recommended",
+      constraints: [
+        "Use the supplied severity; never escalate it for emphasis.",
+        "Keep timestamps explicit and preserve their timezone.",
+      ],
+      examples: [
+        ':::incident{severity="SEV-2" state="monitoring" startedAt="2026-08-11 09:42 CST" scope="华东支付请求"}\n错误率已恢复，持续观察。\n:::',
+      ],
+    },
+    evidence: {
+      kind: "container",
+      schema: z.object({
+        strength: z.enum(["strong", "moderate", "limited"]),
+        sample: z.coerce.number().int().positive().optional(),
+        effect: z.string().optional(),
+        confidenceInterval: z.string().optional(),
+      }),
+      fallback: "blockquote",
+      description: "Render a research finding with evidence quality and statistical context.",
+      usage:
+        "A research or experiment result needs its evidence strength and quantitative context surfaced.",
+      childrenDescription: "The finding, method limitations, and what can or cannot be concluded.",
+      outputPriority: "recommended",
+      constraints: [
+        "Do not claim causality for observational evidence.",
+        "Preserve sample size, effect, and confidence interval exactly when provided.",
+      ],
+      examples: [
+        ':::evidence{strength="strong" sample=1240 effect="+8.4%" confidenceInterval="95% CI 5.1–11.7%"}\n实验组转化率显著提升。\n:::',
+      ],
+    },
     increase: {
       kind: "inline",
       schema: trendSchema,
