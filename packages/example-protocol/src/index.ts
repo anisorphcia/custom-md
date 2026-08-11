@@ -17,15 +17,21 @@ export {
 } from "./scenarios";
 export type {
   ActionAttributes,
+  CashFlowAttributes,
   CitationAttributes,
   DecreaseAttributes,
   DemoProtocol,
   EvidenceAttributes,
+  FinancialInsightAttributes,
   FinancialMetricAttributes,
   GuidanceAttributes,
   IncidentAttributes,
   IncreaseAttributes,
+  MarginChangeAttributes,
   MilestoneAttributes,
+  PeriodComparisonAttributes,
+  ProfitTransitionAttributes,
   RiskAttributes,
+  SegmentPerformanceAttributes,
   StatusAttributes,
 } from "./types";

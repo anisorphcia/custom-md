@@ -61,6 +61,17 @@ describe("SemanticMarkdown", () => {
     expect(wrapper.text()).toContain("visible");
   });
 
+  it("renders GFM tables with semantic table sections", () => {
+    const wrapper = mount(SemanticMarkdown, {
+      props: {
+        content: "| 指标 | 同比 |\n| --- | ---: |\n| 收入 | +12.5% |",
+        protocol,
+      },
+    });
+    expect(wrapper.findAll("thead th")).toHaveLength(2);
+    expect(wrapper.findAll("tbody td")).toHaveLength(2);
+  });
+
   it("preserves custom component instances for stable node IDs", async () => {
     let mounts = 0;
     let unmounts = 0;

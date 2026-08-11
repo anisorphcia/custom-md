@@ -11,6 +11,10 @@ const comparisonSchema = z.object({
   label: z.string(),
   value: z.coerce.number(),
   unit: z.enum(["percent", "currency", "count", "ratio"]),
+  currency: z.enum(["CNY", "USD", "HKD", "EUR"]).optional(),
+  scale: z
+    .enum(["unit", "thousand", "ten-thousand", "million", "hundred-million", "billion"])
+    .optional(),
   yoy: z.coerce.number().optional(),
   qoq: z.coerce.number().optional(),
   direction: z.enum(["up", "down", "flat"]),
@@ -18,7 +22,7 @@ const comparisonSchema = z.object({
 });
 
 export const demoProtocol = defineProtocol({
-  version: "1.0.0",
+  version: "1.1.0",
   nodes: {
     financialMetric: {
       kind: "container",
@@ -31,11 +35,168 @@ export const demoProtocol = defineProtocol({
       outputPriority: "recommended",
       constraints: [
         "Use yoy only for同比 and qoq only for环比; values are signed percentages.",
+        "When unit is currency, provide both currency and scale so the displayed amount preserves the source unit.",
         "sentiment describes business impact, which may differ from numeric direction (for example, declining costs can be positive).",
         "Do not calculate or infer missing comparisons unless the source provides enough audited values.",
       ],
       examples: [
-        ':::financialMetric{label="营业收入" value=2400 unit="currency" yoy=12.5 qoq=4.1 direction="up" sentiment="positive"}\n汽车业务放量带动收入增长。\n:::',
+        ':::financialMetric{label="营业收入" value=240 unit="currency" currency="CNY" scale="hundred-million" yoy=12.5 qoq=4.1 direction="up" sentiment="positive"}\n汽车业务放量带动收入增长。\n:::',
+      ],
+    },
+    financialInsight: {
+      kind: "container",
+      schema: z.object({
+        title: z.string(),
+        tone: z.enum(["highlight", "pressure", "watch"]),
+        confidence: z.enum(["high", "medium", "low"]),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render a high-value financial conclusion as an executive insight card.",
+      usage:
+        "A report has a material, evidence-backed conclusion about growth, profitability, cash quality, or outlook.",
+      childrenDescription:
+        "A concise evidence → driver → business impact explanation, including at least one reliable figure.",
+      outputPriority: "recommended",
+      constraints: [
+        "Use highlight for a proven strength, pressure for a proven weakness, and watch for a mixed or unresolved signal.",
+        "Do not use this node for section introductions, generic commentary, or conclusions without quantitative evidence.",
+        "confidence reflects evidence completeness, not rhetorical certainty.",
+      ],
+      examples: [
+        ':::financialInsight{title="盈利改善快于收入" tone="highlight" confidence="high"}\n归母净利润同比增长 28.4%，快于收入增速 12.5%，主要受毛利率改善与费用杠杆驱动。\n:::',
+      ],
+    },
+    periodComparison: {
+      kind: "inline",
+      schema: z.object({
+        basis: z.enum(["yoy", "qoq"]),
+        direction: z.enum(["up", "down", "flat"]),
+        value: z.coerce.number().nonnegative(),
+        unit: z.enum(["percent", "percentage-point"]),
+        sentiment: z.enum(["positive", "negative", "neutral"]),
+      }),
+      fallback: "children",
+      renderPending: true,
+      description: "Render an explicit同比 or环比 change with direction and business impact.",
+      usage:
+        "A reliable figure explicitly states a year-over-year or quarter-over-quarter increase, decrease, or flat result.",
+      childrenDescription:
+        "Only the change phrase, such as 增长 12.5% or 下降 0.8 个百分点; the renderer adds同比/环比.",
+      outputPriority: "recommended",
+      constraints: [
+        "value is always unsigned; direction carries up, down, or flat.",
+        "Use percent for relative growth and percentage-point only for the absolute change of a rate.",
+        "sentiment describes the business impact; declining expenses may be positive even though direction is down.",
+        "Do not use this node when the comparison basis or numeric value is missing.",
+      ],
+      antiExamples: [
+        ':periodComparison[增长明显]{basis="yoy" direction="up" value=0 unit="percent" sentiment="positive"}',
+        ':periodComparison[同比增长 12%]{basis="qoq" direction="up" value=12 unit="percent" sentiment="positive"}',
+      ],
+      examples: [
+        ':periodComparison[增长 12.5%]{basis="yoy" direction="up" value=12.5 unit="percent" sentiment="positive"}',
+        ':periodComparison[下降 0.8 个百分点]{basis="qoq" direction="down" value=0.8 unit="percentage-point" sentiment="negative"}',
+      ],
+    },
+    marginChange: {
+      kind: "inline",
+      schema: z.object({
+        metric: z.string(),
+        current: z.coerce.number(),
+        change: z.coerce.number(),
+        basis: z.enum(["yoy", "qoq"]),
+        sentiment: z.enum(["positive", "negative", "neutral"]),
+      }),
+      fallback: "children",
+      renderPending: true,
+      description:
+        "Render a margin or expense-rate level together with its percentage-point change.",
+      usage:
+        "A financial report provides the current gross margin, operating margin, net margin, or expense ratio and a comparable rate change.",
+      childrenDescription: "The metric name and current level, such as 毛利率 21.3%.",
+      outputPriority: "recommended",
+      constraints: [
+        "current is the current rate in percent and change is a signed percentage-point change.",
+        "Never describe a percentage-point change as percent growth.",
+        "Use a negative change for a decline; sentiment separately describes whether that change helps the business.",
+      ],
+      examples: [
+        ':marginChange[毛利率 21.3%]{metric="毛利率" current=21.3 change=1.8 basis="yoy" sentiment="positive"}',
+      ],
+    },
+    profitTransition: {
+      kind: "inline",
+      schema: z.object({
+        state: z.enum(["turn-profitable", "turn-loss", "loss-narrowed", "loss-widened"]),
+        previous: z.string().optional(),
+        current: z.string().optional(),
+      }),
+      fallback: "children",
+      renderPending: true,
+      description: "Render a discrete profit/loss transition such as扭亏为盈 or亏损收窄.",
+      usage:
+        "Current and comparative profit figures establish a transition between profit and loss, or a change in loss magnitude.",
+      childrenDescription: "The affected profit measure, such as 归母净利润 or 经营利润.",
+      outputPriority: "recommended",
+      constraints: [
+        "Use turn-profitable only from loss to profit and turn-loss only from profit to loss.",
+        "Use loss-narrowed or loss-widened only when both periods are losses and their magnitudes support the label.",
+        "Preserve the disclosed amount and unit in previous/current; omit them rather than guessing.",
+      ],
+      examples: [
+        ':profitTransition[归母净利润]{state="turn-profitable" previous="-3.1 亿元" current="8.2 亿元"}',
+      ],
+    },
+    segmentPerformance: {
+      kind: "container",
+      schema: z.object({
+        label: z.string(),
+        share: z.coerce.number().min(0).max(100).optional(),
+        yoy: z.coerce.number().optional(),
+        margin: z.coerce.number().optional(),
+        sentiment: z.enum(["positive", "negative", "neutral"]),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render the contribution and operating performance of a business segment.",
+      usage:
+        "A report discloses meaningful segment revenue share, growth, margin, or operating drivers.",
+      childrenDescription:
+        "Segment revenue or operating KPI, the growth driver, profit contribution, and an analytical conclusion.",
+      outputPriority: "recommended",
+      constraints: [
+        "share and margin are percentage levels; yoy is a signed growth percentage.",
+        "Omit an unavailable stat instead of estimating it.",
+        "Use one card per material segment and avoid cards for immaterial line items.",
+      ],
+      examples: [
+        ':::segmentPerformance{label="智能电动汽车" share=18.6 yoy=32.4 margin=18.1 sentiment="positive"}\n分部收入 446 亿元，交付增长与高端车型占比提升共同拉动收入。\n:::',
+      ],
+    },
+    cashFlow: {
+      kind: "container",
+      schema: z.object({
+        operating: z.string(),
+        free: z.string().optional(),
+        capex: z.string().optional(),
+        quality: z.enum(["strong", "adequate", "weak"]),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render cash generation, capital expenditure, and free-cash-flow quality.",
+      usage:
+        "A report provides operating cash flow and enough context to judge its relationship with profit or investment.",
+      childrenDescription:
+        "Explain the gap between profit and operating cash flow, the free-cash-flow formula, and sustainability.",
+      outputPriority: "recommended",
+      constraints: [
+        "Preserve disclosed amount signs, currencies, and scales in the string attributes.",
+        "If free cash flow is calculated, state the exact formula and label it as calculated in the content.",
+        "quality must be based on cash conversion and sustainability, not on financing inflows.",
+      ],
+      examples: [
+        ':::cashFlow{operating="128 亿元" free="76 亿元" capex="52 亿元" quality="strong"}\n经营现金流覆盖资本开支；自由现金流按“经营现金流－资本开支”计算。\n:::',
       ],
     },
     guidance: {

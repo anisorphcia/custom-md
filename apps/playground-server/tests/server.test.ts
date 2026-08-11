@@ -54,10 +54,12 @@ describe("playground server", () => {
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_BASE_URL = "https://example.invalid/v1";
     process.env.OPENAI_MODEL = "test-model";
-    responsesCreate.mockResolvedValueOnce((async function* () {
-      yield { type: "response.output_text.delta", delta: "# Hello" };
-      yield { type: "response.completed" };
-    })());
+    responsesCreate.mockResolvedValueOnce(
+      (async function* () {
+        yield { type: "response.output_text.delta", delta: "# Hello" };
+        yield { type: "response.completed" };
+      })(),
+    );
 
     try {
       const response = await request(createApp())
@@ -68,9 +70,21 @@ describe("playground server", () => {
       expect(response.text).toContain('data: {"text":"# Hello"}');
       expect(response.text).toContain("event: done");
       expect(responsesCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ model: "test-model", input: "hello", stream: true }),
+        expect.objectContaining({
+          model: "test-model",
+          input: "hello",
+          instructions: expect.stringContaining("# 财报分析任务规范"),
+          stream: true,
+        }),
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
+      const requestOptions = responsesCreate.mock.calls.at(-1)?.[0];
+      expect(requestOptions?.instructions).toContain("## 五、资产负债表与营运效率");
+      expect(requestOptions?.instructions).toContain("## 六、现金流与资本配置");
+      expect(requestOptions?.instructions).toContain("financialMetric (container)");
+      expect(requestOptions?.instructions).toContain("periodComparison (inline)");
+      expect(requestOptions?.instructions).toContain("marginChange (inline)");
+      expect(requestOptions?.instructions).toContain("cashFlow (container)");
     } finally {
       if (original.key) process.env.OPENAI_API_KEY = original.key;
       else delete process.env.OPENAI_API_KEY;

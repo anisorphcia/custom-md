@@ -61,6 +61,59 @@ function semanticFallback(
   return createVNode(Fragment, { key: node.id }, rendered);
 }
 
+function renderTableRow(
+  node: Extract<MarkdownNode, { type: "tableRow" }>,
+  options: VueRenderOptions,
+  header: boolean,
+): VNode {
+  const customRow = options.markdownComponents.tableRow;
+  if (customRow) return element(node, "tr", options);
+  return h(
+    "tr",
+    {
+      key: node.id,
+      ...(options.showPendingState && node.status === "pending"
+        ? { "data-semantic-pending": "true" }
+        : {}),
+    },
+    node.children.map((child) =>
+      child.type === "tableCell"
+        ? element(child, header ? "th" : "td", options, header ? { scope: "col" } : {})
+        : renderNode(child, options),
+    ),
+  );
+}
+
+function renderTable(
+  node: Extract<MarkdownNode, { type: "table" }>,
+  options: VueRenderOptions,
+): VNode {
+  const customTable = options.markdownComponents.table;
+  if (customTable) return element(node, "table", options);
+  const [header, ...body] = node.children;
+  return h(
+    "table",
+    {
+      key: node.id,
+      ...(options.showPendingState && node.status === "pending"
+        ? { "data-semantic-pending": "true" }
+        : {}),
+    },
+    [
+      header?.type === "tableRow"
+        ? h("thead", { key: `${node.id}-head` }, [renderTableRow(header, options, true)])
+        : null,
+      h(
+        "tbody",
+        { key: `${node.id}-body` },
+        body.map((row) =>
+          row.type === "tableRow" ? renderTableRow(row, options, false) : renderNode(row, options),
+        ),
+      ),
+    ],
+  );
+}
+
 export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode {
   switch (node.type) {
     case "root":
@@ -117,7 +170,7 @@ export function renderNode(node: MarkdownNode, options: VueRenderOptions): VNode
     case "thematicBreak":
       return h("hr", { key: node.id });
     case "table":
-      return element(node, "table", options);
+      return renderTable(node, options);
     case "tableRow":
       return element(node, "tr", options);
     case "tableCell":

@@ -1,15 +1,7 @@
-import type {
-  MarkdownNode,
-  SemanticRenderContext,
-} from "@semantic-md/core";
-import { getNodeDefinition } from "@semantic-md/protocol";
+import type { MarkdownNode, SemanticRenderContext } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
-import {
-  createElement,
-  Fragment,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { getNodeDefinition } from "@semantic-md/protocol";
+import { createElement, Fragment, type ReactElement, type ReactNode } from "react";
 import type { MarkdownComponentMap, SemanticComponentMap } from "./types";
 
 export interface ReactRenderOptions {
@@ -21,9 +13,7 @@ export interface ReactRenderOptions {
 }
 
 function children(node: MarkdownNode, options: ReactRenderOptions): ReactNode[] {
-  return "children" in node
-    ? node.children.map((child) => renderNode(child, options))
-    : [];
+  return "children" in node ? node.children.map((child) => renderNode(child, options)) : [];
 }
 
 function element(
@@ -74,10 +64,58 @@ function semanticFallback(
   return createElement(Fragment, { key: node.id }, ...renderedChildren);
 }
 
-export function renderNode(
-  node: MarkdownNode,
+function renderTableRow(
+  node: Extract<MarkdownNode, { type: "tableRow" }>,
+  options: ReactRenderOptions,
+  header: boolean,
+): ReactElement {
+  const customRow = options.markdownComponents.tableRow;
+  if (customRow) return element(node, "tr", options);
+  return createElement(
+    "tr",
+    {
+      key: node.id,
+      ...(options.showPendingState && node.status === "pending"
+        ? { "data-semantic-pending": "true" }
+        : {}),
+    },
+    ...node.children.map((child) =>
+      child.type === "tableCell"
+        ? element(child, header ? "th" : "td", options, header ? { scope: "col" } : {})
+        : renderNode(child, options),
+    ),
+  );
+}
+
+function renderTable(
+  node: Extract<MarkdownNode, { type: "table" }>,
   options: ReactRenderOptions,
 ): ReactElement {
+  const customTable = options.markdownComponents.table;
+  if (customTable) return element(node, "table", options);
+  const [header, ...body] = node.children;
+  return createElement(
+    "table",
+    {
+      key: node.id,
+      ...(options.showPendingState && node.status === "pending"
+        ? { "data-semantic-pending": "true" }
+        : {}),
+    },
+    header?.type === "tableRow"
+      ? createElement("thead", { key: `${node.id}-head` }, renderTableRow(header, options, true))
+      : null,
+    createElement(
+      "tbody",
+      { key: `${node.id}-body` },
+      ...body.map((row) =>
+        row.type === "tableRow" ? renderTableRow(row, options, false) : renderNode(row, options),
+      ),
+    ),
+  );
+}
+
+export function renderNode(node: MarkdownNode, options: ReactRenderOptions): ReactElement {
   switch (node.type) {
     case "root":
       return createElement(Fragment, { key: node.id }, ...children(node, options));
@@ -133,7 +171,7 @@ export function renderNode(
     case "thematicBreak":
       return createElement("hr", { key: node.id });
     case "table":
-      return element(node, "table", options);
+      return renderTable(node, options);
     case "tableRow": {
       return element(node, "tr", options);
     }
@@ -149,22 +187,20 @@ export function renderNode(
       if (!canRender || !component) {
         return semanticFallback(node, options);
       }
-      return createElement(component, {
-        key: node.id,
-        node,
-        attributes: node.attributes,
-        status: node.status,
-        confidence: node.confidence,
-        children: children(node, options),
-        context: options.context,
-      });
-    }
-    case "unknown":
       return createElement(
-        Fragment,
-        { key: node.id },
-        node.value,
+        component,
+        {
+          key: node.id,
+          node,
+          attributes: node.attributes,
+          status: node.status,
+          confidence: node.confidence,
+          context: options.context,
+        },
         ...children(node, options),
       );
+    }
+    case "unknown":
+      return createElement(Fragment, { key: node.id }, node.value, ...children(node, options));
   }
 }

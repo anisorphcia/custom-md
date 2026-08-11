@@ -1,8 +1,8 @@
 import { demoProtocol } from "@semantic-md/example-protocol";
-import { generateProtocolPrompt } from "@semantic-md/protocol";
 import type { Request, Response, Router } from "express";
 import OpenAI from "openai";
 import { fetch, ProxyAgent } from "undici";
+import { buildOpenAiInstructions } from "../prompts/openAiInstructions";
 import { createSseWriter } from "../services/sseWriter";
 
 const MAX_PROMPT_LENGTH = 8_000;
@@ -135,12 +135,7 @@ async function handleOpenAiStream(request: Request, response: Response): Promise
       throw new Error(`问题不能超过 ${MAX_PROMPT_LENGTH} 个字符`);
     }
 
-    const instructions = [
-      "请使用简体中文回答。输出必须是可直接渲染的 Markdown。",
-      "在有助于表达时使用下方 Semantic Markdown 协议；不要解释协议本身。",
-      "输出 Semantic Markdown 节点时必须直接写 :name[...] 或 :::name 语法，严禁用反引号或代码块包裹，否则节点无法渲染。",
-      generateProtocolPrompt(demoProtocol),
-    ].join("\n\n");
+    const instructions = buildOpenAiInstructions();
 
     if (shouldLogPrompt()) {
       console.log(

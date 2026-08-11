@@ -14,7 +14,7 @@ export interface SemanticComponentProps<
   attributes: TAttributes;
   status: NodeStatus;
   confidence: NodeConfidence;
-  children: ReactNode;
+  children?: ReactNode;
   context: SemanticRenderContext;
 }
 

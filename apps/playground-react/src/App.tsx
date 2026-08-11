@@ -154,7 +154,7 @@ export default function App() {
   function start(): void {
     resetAll();
     setConnection("connecting");
-    const baseUrl = import.meta.env.VITE_SSE_BASE_URL ?? "http://localhost:4100";
+    const baseUrl = import.meta.env.VITE_SSE_BASE_URL ?? "";
     if (source === "openai") {
       void startOpenAi(baseUrl);
       return;
