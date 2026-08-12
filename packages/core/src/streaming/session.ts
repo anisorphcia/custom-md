@@ -1,12 +1,9 @@
 import type { SemanticProtocol } from "@semantic-md/protocol";
 import type { Diagnostic, MarkdownDocument, MarkdownNode } from "../ast/types";
+import type { StreamingMode } from "../parser/parseMarkdown";
+import { parseMarkdownFragment, parseMarkdownWithDiagnostics } from "../parser/parseMarkdown";
 import { diffAst } from "../patches/diff";
 import type { ParseUpdate } from "../patches/types";
-import {
-  parseMarkdownFragment,
-  parseMarkdownWithDiagnostics,
-} from "../parser/parseMarkdown";
-import type { StreamingMode } from "../parser/parseMarkdown";
 
 export interface StreamingSessionOptions {
   protocol?: SemanticProtocol;
@@ -37,21 +34,24 @@ function emptyDocument(): MarkdownDocument {
 function findStableBoundary(source: string): number {
   let cursor = 0;
   let lastSafe = 0;
-  let fence: string | undefined;
+  let fence: { marker: string; length: number } | undefined;
   let containerDepth = 0;
   for (const lineWithEnding of source.matchAll(/.*(?:\n|$)/g)) {
     const line = lineWithEnding[0];
+    console.log("lineWithEndin", lineWithEnding);
     if (!line) {
       continue;
     }
     cursor += line.length;
     const content = line.replace(/\r?\n$/, "");
     const fenceMatch = /^ {0,3}(`{3,}|~{3,})/.exec(content);
-    if (fenceMatch) {
-      const marker = fenceMatch[1]?.[0];
-      if (!fence) {
-        fence = marker;
-      } else if (fence === marker) {
+    const fenceSequence = fenceMatch?.[1];
+    if (fence && fenceSequence) {
+      const closesFence =
+        fenceSequence[0] === fence.marker &&
+        fenceSequence.length >= fence.length &&
+        /^\s*$/.test(content.slice(fenceMatch[0].length));
+      if (closesFence) {
         fence = undefined;
         if (line.endsWith("\n")) {
           lastSafe = cursor;
@@ -60,6 +60,10 @@ function findStableBoundary(source: string): number {
       continue;
     }
     if (fence) {
+      continue;
+    }
+    if (fenceSequence) {
+      fence = { marker: fenceSequence[0] ?? "", length: fenceSequence.length };
       continue;
     }
     if (/^ {0,3}:::[A-Za-z][\w-]*(?:\{.*\})?\s*$/.test(content)) {

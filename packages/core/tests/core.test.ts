@@ -1,6 +1,6 @@
+import { defineProtocol } from "@semantic-md/protocol";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { defineProtocol } from "@semantic-md/protocol";
 import {
   createStreamingMarkdownSession,
   normalizeDocument,
@@ -46,7 +46,7 @@ describe("parseMarkdown", () => {
 
   it("does not expose dangerous links or HTML", () => {
     const result = parseMarkdownWithDiagnostics(
-      '[click](javascript:alert(1)) <img src=x onerror=alert(1)>',
+      "[click](javascript:alert(1)) <img src=x onerror=alert(1)>",
       { protocol },
     );
     expect(result.diagnostics.some((item) => item.code === "UNSAFE_URL")).toBe(true);
@@ -94,14 +94,25 @@ describe("streaming session", () => {
     expect(code && "value" in code ? code.value : "").toContain("const value");
   });
 
+  it("does not stabilize a code fence closed by a shorter marker", () => {
+    const session = createStreamingMarkdownSession();
+    session.push("````js\nconst value = 1;\n```\n");
+
+    const pendingCode = session.getSnapshot().children[0];
+    expect(pendingCode?.type).toBe("codeBlock");
+    expect(pendingCode?.status).toBe("pending");
+    expect(pendingCode && "value" in pendingCode ? pendingCode.value : "").toContain("```");
+
+    session.push("````\n");
+    expect(session.getSnapshot().children[0]?.status).toBe("stable");
+  });
+
   it("provides provisional inline nodes and falls back at finish", () => {
     const session = createStreamingMarkdownSession({ protocol, mode: "optimistic" });
     session.push("This is *important");
     expect(JSON.stringify(session.getSnapshot())).toContain('"confidence":"provisional"');
     session.finish();
-    expect(JSON.stringify(session.getSnapshot())).not.toContain(
-      '"confidence":"provisional"',
-    );
+    expect(JSON.stringify(session.getSnapshot())).not.toContain('"confidence":"provisional"');
     expect(session.getDiagnostics().some((item) => item.code === "UNTERMINATED_INLINE_MARK")).toBe(
       true,
     );
@@ -121,9 +132,7 @@ describe("streaming session", () => {
     expect(session.getSnapshot().children[0]?.status).toBe("pending");
     const update = session.finish();
     expect(JSON.stringify(update.snapshot)).toContain("`pending");
-    expect(update.diagnostics.some((item) => item.code === "UNTERMINATED_INLINE_MARK")).toBe(
-      true,
-    );
+    expect(update.diagnostics.some((item) => item.code === "UNTERMINATED_INLINE_MARK")).toBe(true);
   });
 
   it("reports malformed structures even when they are not on the final line", () => {
@@ -131,30 +140,22 @@ describe("streaming session", () => {
       "Unclosed *mark\n\nA later paragraph\n\n```ts\nconst value = 1;",
     );
     expect(result.diagnostics.map((item) => item.code)).toEqual(
-      expect.arrayContaining([
-        "UNTERMINATED_INLINE_MARK",
-        "UNTERMINATED_CODE_FENCE",
-      ]),
+      expect.arrayContaining(["UNTERMINATED_INLINE_MARK", "UNTERMINATED_CODE_FENCE"]),
     );
   });
 
   it("marks invalid and unknown semantic nodes without dropping children", () => {
-    const invalid = parseMarkdownWithDiagnostics(
-      ':increase[bad]{value=nope unit="percent"}',
-      { protocol },
-    );
-    expect(invalid.diagnostics.some((item) => item.code === "INVALID_ATTRIBUTE_TYPE")).toBe(
-      true,
-    );
+    const invalid = parseMarkdownWithDiagnostics(':increase[bad]{value=nope unit="percent"}', {
+      protocol,
+    });
+    expect(invalid.diagnostics.some((item) => item.code === "INVALID_ATTRIBUTE_TYPE")).toBe(true);
     expect(invalid.document.children[0]?.status).toBe("stable");
     expect(JSON.stringify(invalid.document)).toContain('"status":"invalid"');
 
     const unknown = parseMarkdownWithDiagnostics(":missing[visible]{value=1}", {
       protocol,
     });
-    expect(unknown.diagnostics.some((item) => item.code === "UNKNOWN_SEMANTIC_NODE")).toBe(
-      true,
-    );
+    expect(unknown.diagnostics.some((item) => item.code === "UNKNOWN_SEMANTIC_NODE")).toBe(true);
     expect(JSON.stringify(unknown.document)).toContain("visible");
   });
 
