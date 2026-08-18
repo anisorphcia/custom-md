@@ -152,8 +152,6 @@ export type MarkdownNode =
 
 export type MarkdownDocument = RootNode;
 
-export function hasChildren(
-  node: MarkdownNode,
-): node is MarkdownNode & ParentNode {
+export function hasChildren(node: MarkdownNode): node is MarkdownNode & ParentNode {
   return "children" in node;
 }

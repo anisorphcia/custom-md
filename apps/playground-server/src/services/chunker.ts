@@ -39,7 +39,8 @@ function randomChunks(content: string, maximum: number, seed: number): string[] 
 
 function syntaxBoundaryChunks(content: string, chunkSize: number): string[] {
   const boundaries = new Set<number>([0, content.length]);
-  const dangerous = /```[A-Za-z]*|:::[A-Za-z][\w-]*|:[A-Za-z][\w-]*\[|\*\*|`|\]\{|\|(?:\s*:?-{3,}:?\s*\|)+/g;
+  const dangerous =
+    /```[A-Za-z]*|:::[A-Za-z][\w-]*|:[A-Za-z][\w-]*\[|\*\*|`|\]\{|\|(?:\s*:?-{3,}:?\s*\|)+/g;
   for (const match of content.matchAll(dangerous)) {
     const start = match.index;
     const end = start + match[0].length;
@@ -62,10 +63,7 @@ function syntaxBoundaryChunks(content: string, chunkSize: number): string[] {
   return chunks;
 }
 
-export function chunkContent(
-  content: string,
-  options: Partial<ChunkOptions> = {},
-): string[] {
+export function chunkContent(content: string, options: Partial<ChunkOptions> = {}): string[] {
   const mode = options.mode ?? "random";
   const size = Math.max(1, Math.min(1_024, Math.floor(options.chunkSize ?? 12)));
   switch (mode) {

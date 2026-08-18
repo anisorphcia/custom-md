@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
 import { createStreamingMarkdownSession } from "@semantic-md/core";
 import { defineProtocol } from "@semantic-md/protocol";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
-import { z } from "zod";
 import { describe, expect, it, vi } from "vitest";
-import { SemanticMarkdown, type SemanticComponentProps } from "../src";
+import { z } from "zod";
+import { type SemanticComponentProps, SemanticMarkdown } from "../src";
 
 const protocol = defineProtocol({
   version: "1",
@@ -22,10 +22,7 @@ describe("SemanticMarkdown", () => {
   it("renders Markdown and safe semantic components", () => {
     function Action(props: SemanticComponentProps) {
       return (
-        <button
-          type="button"
-          onClick={() => props.context.requestAction({ name: "test" })}
-        >
+        <button type="button" onClick={() => props.context.requestAction({ name: "test" })}>
           {props.children}
         </button>
       );
@@ -45,12 +42,7 @@ describe("SemanticMarkdown", () => {
   });
 
   it("falls back to children for unknown nodes", () => {
-    render(
-      <SemanticMarkdown
-        content=":unknown[Visible]{value=1}"
-        protocol={protocol}
-      />,
-    );
+    render(<SemanticMarkdown content=":unknown[Visible]{value=1}" protocol={protocol} />);
     expect(screen.getByText("Visible")).toBeTruthy();
   });
 

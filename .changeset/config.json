@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
+  "baseBranch": "main",
+  "access": "public",
+  "format": "auto",
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "anisorphcia/custom-md"
+    }
+  ],
+  "commit": false,
+  "ignore": [],
+  "fixed": [
+    [
+      "@semantic-md/protocol",
+      "@semantic-md/core",
+      "@semantic-md/react",
+      "@semantic-md/vue"
+    ]
+  ],
+  "linked": [],
+  "updateInternalDependencies": "patch"
+}

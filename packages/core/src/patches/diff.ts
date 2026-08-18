@@ -25,10 +25,7 @@ function diffNode(previous: MarkdownNode, next: MarkdownNode, patches: AstPatch[
   }
 
   if (previous.type === "text" && next.type === "text") {
-    if (
-      next.value.startsWith(previous.value) &&
-      next.value.length > previous.value.length
-    ) {
+    if (next.value.startsWith(previous.value) && next.value.length > previous.value.length) {
       patches.push({
         type: "append-text",
         nodeId: next.id,
@@ -47,10 +44,7 @@ function diffNode(previous: MarkdownNode, next: MarkdownNode, patches: AstPatch[
 
   if (previous.status !== "stable" && next.status === "stable") {
     patches.push({ type: "stabilize", nodeId: next.id });
-  } else if (
-    previous.status !== next.status ||
-    previous.confidence !== next.confidence
-  ) {
+  } else if (previous.status !== next.status || previous.confidence !== next.confidence) {
     patches.push({
       type: "update",
       nodeId: next.id,

@@ -38,7 +38,6 @@ function findStableBoundary(source: string): number {
   let containerDepth = 0;
   for (const lineWithEnding of source.matchAll(/.*(?:\n|$)/g)) {
     const line = lineWithEnding[0];
-    console.log("lineWithEndin", lineWithEnding);
     if (!line) {
       continue;
     }

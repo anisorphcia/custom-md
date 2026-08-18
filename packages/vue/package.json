@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --external vue --clean",
     "test": "vitest run",
@@ -31,5 +33,19 @@
     "vue": "^3.5.18",
     "vue-tsc": "^3.0.4",
     "zod": "^3.25.76"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anisorphcia/custom-md.git",
+    "directory": "packages/vue"
+  },
+  "homepage": "https://github.com/anisorphcia/custom-md#readme",
+  "bugs": {
+    "url": "https://github.com/anisorphcia/custom-md/issues"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
   }
 }

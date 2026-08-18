@@ -6,13 +6,7 @@ import type {
   SemanticValidationResult,
 } from "./types";
 
-const FORBIDDEN_ATTRIBUTES = new Set([
-  "style",
-  "class",
-  "classname",
-  "innerhtml",
-  "srcdoc",
-]);
+const FORBIDDEN_ATTRIBUTES = new Set(["style", "class", "classname", "innerhtml", "srcdoc"]);
 const ATTRIBUTE_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 function diagnostic(

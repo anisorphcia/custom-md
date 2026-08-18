@@ -7,7 +7,6 @@
     "paths": {
       "@semantic-md/core": ["packages/core/src/index.ts"],
       "@semantic-md/protocol": ["packages/protocol/src/index.ts"],
-      "@semantic-md/stream": ["packages/stream/src/index.ts"],
       "@semantic-md/react": ["packages/react/src/index.ts"],
       "@semantic-md/vue": ["packages/vue/src/index.ts"],
       "@semantic-md/example-protocol": ["packages/example-protocol/src/index.ts"]

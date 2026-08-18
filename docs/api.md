@@ -31,12 +31,6 @@ interface StreamingMarkdownSession {
 }
 ```
 
-## `@semantic-md/stream`
-
-- `consumeReadableStream(stream, session, options?)`
-- `consumeAsyncIterable(iterable, session, options?)`
-- `connectSemanticSse(url, session, callbacks?)`
-
 ## Framework adapters
 
 React 导出 `<SemanticMarkdown>`、`useSemanticMarkdown`、`renderNode` 和 context hook。

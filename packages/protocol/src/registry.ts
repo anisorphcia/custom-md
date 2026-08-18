@@ -1,13 +1,6 @@
-import type {
-  SemanticNodeDefinition,
-  SemanticNodeDefinitions,
-  SemanticProtocol,
-} from "./types";
+import type { SemanticNodeDefinition, SemanticNodeDefinitions, SemanticProtocol } from "./types";
 
-export function getNodeDefinition<
-  TNodes extends SemanticNodeDefinitions,
-  TName extends string,
->(
+export function getNodeDefinition<TNodes extends SemanticNodeDefinitions, TName extends string>(
   protocol: SemanticProtocol<TNodes>,
   name: TName,
 ): SemanticNodeDefinition | undefined {

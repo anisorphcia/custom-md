@@ -5,9 +5,7 @@ describe("chunkContent", () => {
   it("supports every chunking mode without losing input", () => {
     const content = "**重要** :metric[12]{value=12}\n| --- | ---: |";
     for (const mode of ["char", "word", "fixed", "random", "syntax-boundary"] as const) {
-      expect(chunkContent(content, { mode, chunkSize: 5, seed: 1 }).join("")).toBe(
-        content,
-      );
+      expect(chunkContent(content, { mode, chunkSize: 5, seed: 1 }).join("")).toBe(content);
     }
   });
 

@@ -5,31 +5,19 @@ import { createSseWriter } from "../services/sseWriter";
 import { simulateStream } from "../services/streamSimulator";
 import type { ChunkMode, StreamQuery } from "../types";
 
-const CHUNK_MODES = new Set<ChunkMode>([
-  "char",
-  "word",
-  "fixed",
-  "random",
-  "syntax-boundary",
-]);
+const CHUNK_MODES = new Set<ChunkMode>(["char", "word", "fixed", "random", "syntax-boundary"]);
 
 function numberQuery(value: unknown, fallback: number, minimum: number, maximum: number): number {
   const parsed = typeof value === "string" ? Number(value) : Number.NaN;
-  return Number.isFinite(parsed)
-    ? Math.min(maximum, Math.max(minimum, parsed))
-    : fallback;
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
 }
 
 function queryFrom(request: Request): StreamQuery {
   const rawMode = typeof request.query.chunkMode === "string" ? request.query.chunkMode : "";
   return {
-    ...(typeof request.query.scenario === "string"
-      ? { scenario: request.query.scenario }
-      : {}),
+    ...(typeof request.query.scenario === "string" ? { scenario: request.query.scenario } : {}),
     speed: numberQuery(request.query.speed, 30, 0, 5_000),
-    chunkMode: CHUNK_MODES.has(rawMode as ChunkMode)
-      ? (rawMode as ChunkMode)
-      : "random",
+    chunkMode: CHUNK_MODES.has(rawMode as ChunkMode) ? (rawMode as ChunkMode) : "random",
     chunkSize: numberQuery(request.query.chunkSize, 12, 1, 1_024),
     seed: numberQuery(request.query.seed, 1, 0, 2_147_483_647),
   };

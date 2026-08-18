@@ -1,9 +1,5 @@
+import type { ProtocolDiagnostic, SemanticNodeKind, SemanticProtocol } from "@semantic-md/protocol";
 import { validateSemanticNode } from "@semantic-md/protocol";
-import type {
-  ProtocolDiagnostic,
-  SemanticNodeKind,
-  SemanticProtocol,
-} from "@semantic-md/protocol";
 import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
@@ -161,10 +157,7 @@ function transformSemantic(node: MdNode, context: TransformContext): SemanticNod
     rawAttributes: raw,
     children: childrenFor(node, context),
     validationErrors: result.diagnostics,
-    raw: context.source.slice(
-      range.start - context.offset,
-      range.end - context.offset,
-    ),
+    raw: context.source.slice(range.start - context.offset, range.end - context.offset),
   };
 }
 
@@ -442,8 +435,7 @@ function provisionalSemantic(
 
 function splitProvisionalText(node: TextNode, protocol: SemanticProtocol): MarkdownNode[] {
   const value = node.value;
-  const partialAttributes =
-    /:([A-Za-z][A-Za-z0-9_-]*)\[([^\]]*)\]\{([^}]*)$/.exec(value);
+  const partialAttributes = /:([A-Za-z][A-Za-z0-9_-]*)\[([^\]]*)\]\{([^}]*)$/.exec(value);
   if (partialAttributes?.index !== undefined) {
     const markerStart = node.range.start + partialAttributes.index;
     const name = partialAttributes[1] ?? "unknown";
@@ -488,15 +480,7 @@ function splitProvisionalText(node: TextNode, protocol: SemanticProtocol): Markd
             } satisfies TextNode,
           ]
         : []),
-      provisionalSemantic(
-        node,
-        markerStart,
-        directive[0],
-        name,
-        label,
-        {},
-        protocol,
-      ),
+      provisionalSemantic(node, markerStart, directive[0], name, label, {}, protocol),
     ];
   }
 
@@ -570,6 +554,43 @@ function splitProvisionalText(node: TextNode, protocol: SemanticProtocol): Markd
   return [node];
 }
 
+function mergeProvisionalAttributes(
+  node: SemanticNode,
+  tail: TextNode,
+  protocol: SemanticProtocol,
+): SemanticNode | undefined {
+  if (
+    node.kind !== "inline" ||
+    node.range.end !== tail.range.start ||
+    !tail.value.startsWith("{") ||
+    tail.value.includes("}")
+  ) {
+    return undefined;
+  }
+
+  const range = { start: node.range.start, end: tail.range.end };
+  const rawAttributes = completedRawAttributes(tail.value.slice(1));
+  const validation = validateSemanticNode(
+    {
+      name: node.name,
+      rawAttributes,
+      range,
+      nodeId: node.id,
+    },
+    protocol,
+  );
+  return {
+    ...node,
+    status: protocol.nodes[node.name] ? "pending" : "invalid",
+    confidence: "provisional",
+    range,
+    attributes: validation.valid ? validation.attributes : {},
+    rawAttributes,
+    validationErrors: validation.diagnostics,
+    raw: `${node.raw ?? ""}${tail.value}`,
+  };
+}
+
 function applyProvisional(
   node: MarkdownNode,
   protocol: SemanticProtocol,
@@ -579,7 +600,20 @@ function applyProvisional(
     return;
   }
   const nextChildren: MarkdownNode[] = [];
-  for (const child of node.children) {
+  for (let index = 0; index < node.children.length; index += 1) {
+    const child = node.children[index];
+    if (!child) {
+      continue;
+    }
+    const nextChild = node.children[index + 1];
+    if (child.type === "semantic" && nextChild?.type === "text" && nextChild.status === "pending") {
+      const merged = mergeProvisionalAttributes(child, nextChild, protocol);
+      if (merged) {
+        nextChildren.push(merged);
+        index += 1;
+        continue;
+      }
+    }
     if (child.type === "text" && child.status === "pending") {
       nextChildren.push(...splitProvisionalText(child, protocol));
     } else {
@@ -590,10 +624,7 @@ function applyProvisional(
   node.children = nextChildren;
 }
 
-function addCompletionDiagnostics(
-  source: string,
-  diagnostics: Diagnostic[],
-): void {
+function addCompletionDiagnostics(source: string, diagnostics: Diagnostic[]): void {
   const fences = source.match(/^(?: {0,3})(`{3,}|~{3,}).*$/gm) ?? [];
   if (fences.length % 2 === 1) {
     diagnostics.push({
@@ -639,10 +670,7 @@ function addCompletionDiagnostics(
     const markOpener = /(?:^|[\s(])(\*{1,3}|_{1,3})(?=\S)/.exec(text);
     if (
       markOpener &&
-      text.indexOf(
-        markOpener[1] ?? "",
-        markOpener.index + markOpener[0].length,
-      ) < 0
+      text.indexOf(markOpener[1] ?? "", markOpener.index + markOpener[0].length) < 0
     ) {
       hasUnterminatedInline = true;
       break;

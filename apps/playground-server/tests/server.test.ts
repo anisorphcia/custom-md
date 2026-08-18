@@ -54,10 +54,12 @@ describe("playground server", () => {
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_BASE_URL = "https://example.invalid/v1";
     process.env.OPENAI_MODEL = "test-model";
-    responsesCreate.mockResolvedValueOnce((async function* () {
-      yield { type: "response.output_text.delta", delta: "# Hello" };
-      yield { type: "response.completed" };
-    })());
+    responsesCreate.mockResolvedValueOnce(
+      (async function* () {
+        yield { type: "response.output_text.delta", delta: "# Hello" };
+        yield { type: "response.completed" };
+      })(),
+    );
 
     try {
       const response = await request(createApp())

@@ -102,16 +102,6 @@
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── vitest.config.ts
-│   ├── stream
-│   │   ├── src
-│   │   │   ├── asyncIterable.ts
-│   │   │   ├── index.ts
-│   │   │   ├── readableStream.ts
-│   │   │   └── sse.ts
-│   │   ├── tests/stream.test.ts
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── vitest.config.ts
 │   └── vue
 │       ├── src
 │       │   ├── composables/useSemanticMarkdown.ts

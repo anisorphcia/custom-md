@@ -124,6 +124,10 @@ describe("streaming session", () => {
     const snapshot = JSON.stringify(session.getSnapshot());
     expect(snapshot).toContain('"rawAttributes":{"value":"12"}');
     expect(snapshot).not.toContain('"unit":"per"');
+    expect(snapshot).toContain('"confidence":"provisional"');
+    expect(session.getSnapshot().children[0]).toMatchObject({
+      children: [{ type: "semantic", range: { start: 0, end: 32 } }],
+    });
   });
 
   it("recovers incomplete inline code as text", () => {

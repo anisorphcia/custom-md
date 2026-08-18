@@ -13,8 +13,8 @@ Block 和 Container 语义节点。React 与 Vue 适配器消费同一份框架�
 flowchart LR
   P["@semantic-md/protocol"] --> C["@semantic-md/core"]
   E["@semantic-md/example-protocol"] --> P
-  S["SSE / ReadableStream / AsyncIterable"] --> I["@semantic-md/stream"]
-  I --> C
+  S["SSE / Fetch / WebSocket / AI SDK"] --> A["调用方适配为文本 chunk"]
+  A --> C
   C --> R["@semantic-md/react"]
   C --> V["@semantic-md/vue"]
   E --> SR["React Playground"]
@@ -30,7 +30,7 @@ Core 使用“已稳定前缀 + 活动尾部”模型。稳定前缀只在安全
 
 ## 环境与安装
 
-- Node.js 20.19+
+- Node.js 22.13+
 - pnpm 10+
 
 ```bash
@@ -130,10 +130,10 @@ import { SemanticMarkdown } from "@semantic-md/vue";
 
 ## 输入适配
 
-`@semantic-md/stream` 提供 `consumeReadableStream`、`consumeAsyncIterable` 和
-`connectSemanticSse`。也可以直接调用 Core session 的 `push(chunk)`。EventSource
-的 `delta` 内容始终被当作不可信文本解析，永不执行 JSX、Vue Template、HTML 或
-action。
+传输协议由调用方负责解析；SDK 的稳定输入契约是
+`StreamingMarkdownSession.push(markdownChunk)`。SSE、Fetch、WebSocket 或不同 AI
+SDK 的事件只需转换为纯文本 chunk，再交给 Core session。输入始终被当作不可信
+Markdown 解析，永不执行 JSX、Vue Template、HTML 或 action。
 
 ## 质量命令
 
@@ -146,9 +146,26 @@ pnpm test:e2e
 pnpm benchmark
 ```
 
-测试覆盖完整解析、随机分片最终一致性、Patch、危险 URL、协议验证、流适配、
+测试覆盖完整解析、随机分片最终一致性、Patch、危险 URL、协议验证、
 React/Vue 语义组件和 SSE 顺序。Playwright 覆盖两个 Playground 的流式与 malformed
 恢复路径。
+
+## 发布 npm
+
+公开发布 `@semantic-md/protocol`、`@semantic-md/core`、`@semantic-md/react` 和
+`@semantic-md/vue`；Playground 与 `@semantic-md/example-protocol` 均为 private。
+
+首次发布当前的 `0.1.0`：
+
+```bash
+npm login
+npm whoami
+pnpm release
+```
+
+后续版本先运行 `pnpm changeset` 记录变更，提交 changeset 后运行
+`pnpm version-packages` 更新版本和 changelog，再执行 `pnpm release`。当前 changelog
+使用 GitHub 插件，执行版本更新时需要提供可读取仓库信息的 `GITHUB_TOKEN`。
 
 ## 安全默认值
 

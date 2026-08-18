@@ -1,9 +1,4 @@
-export type ChunkMode =
-  | "char"
-  | "word"
-  | "fixed"
-  | "random"
-  | "syntax-boundary";
+export type ChunkMode = "char" | "word" | "fixed" | "random" | "syntax-boundary";
 
 export interface StreamQuery {
   scenario?: string;

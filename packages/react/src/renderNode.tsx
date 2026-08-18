@@ -1,15 +1,7 @@
-import type {
-  MarkdownNode,
-  SemanticRenderContext,
-} from "@semantic-md/core";
-import { getNodeDefinition } from "@semantic-md/protocol";
+import type { MarkdownNode, SemanticRenderContext } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
-import {
-  createElement,
-  Fragment,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { getNodeDefinition } from "@semantic-md/protocol";
+import { createElement, Fragment, type ReactElement, type ReactNode } from "react";
 import type { MarkdownComponentMap, SemanticComponentMap } from "./types";
 
 export interface ReactRenderOptions {
@@ -21,9 +13,7 @@ export interface ReactRenderOptions {
 }
 
 function children(node: MarkdownNode, options: ReactRenderOptions): ReactNode[] {
-  return "children" in node
-    ? node.children.map((child) => renderNode(child, options))
-    : [];
+  return "children" in node ? node.children.map((child) => renderNode(child, options)) : [];
 }
 
 function element(
@@ -74,10 +64,7 @@ function semanticFallback(
   return createElement(Fragment, { key: node.id }, ...renderedChildren);
 }
 
-export function renderNode(
-  node: MarkdownNode,
-  options: ReactRenderOptions,
-): ReactElement {
+export function renderNode(node: MarkdownNode, options: ReactRenderOptions): ReactElement {
   switch (node.type) {
     case "root":
       return createElement(Fragment, { key: node.id }, ...children(node, options));
@@ -149,22 +136,20 @@ export function renderNode(
       if (!canRender || !component) {
         return semanticFallback(node, options);
       }
-      return createElement(component, {
-        key: node.id,
-        node,
-        attributes: node.attributes,
-        status: node.status,
-        confidence: node.confidence,
-        children: children(node, options),
-        context: options.context,
-      });
-    }
-    case "unknown":
       return createElement(
-        Fragment,
-        { key: node.id },
-        node.value,
+        component,
+        {
+          key: node.id,
+          node,
+          attributes: node.attributes,
+          status: node.status,
+          confidence: node.confidence,
+          context: options.context,
+        },
         ...children(node, options),
       );
+    }
+    case "unknown":
+      return createElement(Fragment, { key: node.id }, node.value, ...children(node, options));
   }
 }

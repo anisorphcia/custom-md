@@ -10,5 +10,4 @@ export const DIAGNOSTIC_CODES = {
   streamParseRecovery: "STREAM_PARSE_RECOVERY",
 } as const;
 
-export type DiagnosticCode =
-  (typeof DIAGNOSTIC_CODES)[keyof typeof DIAGNOSTIC_CODES];
+export type DiagnosticCode = (typeof DIAGNOSTIC_CODES)[keyof typeof DIAGNOSTIC_CODES];

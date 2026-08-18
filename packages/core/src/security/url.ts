@@ -8,6 +8,7 @@ const ALLOWED_SCHEMES = new Set(["http:", "https:"]);
 
 export function sanitizeUrl(rawUrl: string): SafeUrlResult {
   const value = rawUrl.trim();
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: URL schemes must be checked without ASCII control characters.
   const schemeProbe = value.replace(/[\u0000-\u0020\u007f]+/g, "");
   if (!value) {
     return { safe: false };
@@ -29,9 +30,7 @@ export function sanitizeUrl(rawUrl: string): SafeUrlResult {
 
   try {
     const parsed = new URL(schemeProbe);
-    return ALLOWED_SCHEMES.has(parsed.protocol)
-      ? { safe: true, url: value }
-      : { safe: false };
+    return ALLOWED_SCHEMES.has(parsed.protocol) ? { safe: true, url: value } : { safe: false };
   } catch {
     return { safe: false };
   }

@@ -6,14 +6,15 @@
 example-protocol ──> protocol
                          │
                          v
-stream adapters ──────> core <──── React adapter
+text chunks ──────────> core <──── React adapter
                          ^
                          └──────── Vue adapter
 
 Express server ── SSE ──> React/Vue Playgrounds
 ```
 
-`@semantic-md/core` 不依赖 DOM、React、Vue 或 SSE。`@semantic-md/protocol` 封装
+传输协议由调用方适配为文本 chunk；`@semantic-md/core` 不依赖 DOM、React、Vue 或
+SSE。`@semantic-md/protocol` 封装
 Schema 的 `safeParse` 能力，Core 不需要知道 Zod 的业务类型。框架包不包含解析逻辑。
 
 ## 数据流

@@ -1,6 +1,7 @@
 {
   "name": "@semantic-md/example-protocol",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -11,7 +12,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "test": "vitest run --passWithNoTests",
@@ -21,6 +24,17 @@
     "@semantic-md/protocol": "workspace:*",
     "zod": "^3.25.76"
   },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anisorphcia/custom-md.git",
+    "directory": "packages/example-protocol"
+  },
+  "homepage": "https://github.com/anisorphcia/custom-md#readme",
+  "bugs": {
+    "url": "https://github.com/anisorphcia/custom-md/issues"
+  },
+  "sideEffects": false,
   "devDependencies": {
     "tsup": "^8.5.0"
   }

@@ -1,19 +1,12 @@
 import {
-  parseMarkdownWithDiagnostics,
   type MarkdownDocument,
+  parseMarkdownWithDiagnostics,
   type SemanticActionRequest,
   type SemanticRenderContext,
   type StreamingMode,
 } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
-import {
-  computed,
-  defineComponent,
-  h,
-  provide,
-  type PropType,
-  watchEffect,
-} from "vue";
+import { computed, defineComponent, h, type PropType, provide, watchEffect } from "vue";
 import { semanticMarkdownContextKey } from "./context";
 import { renderNode } from "./renderNode";
 import type { MarkdownComponentMap, SemanticComponentMap } from "./types";
