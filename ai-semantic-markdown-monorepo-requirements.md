@@ -1,5 +1,10 @@
 # AI Semantic Markdown Monorepo 可执行需求文档
 
+> [!WARNING]
+> 这是项目启动阶段的历史需求和验收输入，不代表当前公共 API。实现过程中已经取消
+> 独立的 `@semantic-md/stream` 包，并扩展了示例 Protocol。请以根目录
+> `README.md`、`docs/` 和各 package 的当前导出为准。
+
 ## 1. 文档目的
 
 本需求用于指导编码 AI 从零完成一个可运行、可测试、可扩展的 Monorepo 项目。

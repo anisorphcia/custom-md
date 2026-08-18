@@ -29,5 +29,5 @@ Schema 的 `safeParse` 能力，Core 不需要知道 Zod 的业务类型。框�
 ## 安全边界
 
 Parser 只产生数据 AST。HTML 被转换为普通 TextNode；URL 在进入 Link/Image AST
-前进行协议校验；语义属性先过滤危险名称再进入 Schema。只有受信任的 Renderer
+前经过 `sanitizeUrl` 安全校验；语义属性先过滤危险名称再进入 Schema。只有受信任的 Renderer
 组件能调用 `requestAction` 和 `resolveReference`。

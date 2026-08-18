@@ -28,7 +28,23 @@ Core 使用“已稳定前缀 + 活动尾部”模型。稳定前缀只在安全
 活动 Block 可以局部重解析；流结束时执行一次规范解析，保证最终 AST 与完整字符串
 解析语义等价。
 
-## 环境与安装
+## 安装
+
+React：
+
+```bash
+pnpm add @semantic-md/protocol @semantic-md/react zod react react-dom
+```
+
+Vue 3：
+
+```bash
+pnpm add @semantic-md/protocol @semantic-md/vue zod vue
+```
+
+完整接入流程见[自定义 Protocol 接入指南](docs/custom-protocol.md)。
+
+## 本地运行 Playground
 
 - Node.js 22.13+
 - pnpm 10+
@@ -40,11 +56,9 @@ cp .env.example .env
 
 如需运行真实 AI Demo，在 `.env` 中填写 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和
 `OPENAI_MODEL`。这三项均只由 Express 服务端读取，不会发送到浏览器。Demo 使用
-OpenAI 兼容的 Responses API，并通过 SSE 将输出逐段交给 React Playground 渲染。
+OpenAI 兼容的 Responses API，并通过 SSE 将输出逐段交给 React/Vue Playground 渲染。
 如需在服务端终端查看实际上送的完整 `instructions` 和 `input`，设置
 `AI_LOG_PROMPT=true`；日志可能包含用户输入，请勿在生产环境长期开启。
-
-## 启动 Playground
 
 ```bash
 pnpm dev
@@ -91,6 +105,8 @@ export const protocol = defineProtocol({
 协议定义不会进入 Core 的业务逻辑；Core 只通过封装后的 `safeParse` 契约调用 Schema。
 `generateProtocolPrompt(protocol)` 可生成供模型使用的节点语法说明。
 
+Playground 的 `@semantic-md/example-protocol` 只是参考实现，业务项目不需要依赖它。
+
 ## React
 
 ```tsx
@@ -135,38 +151,6 @@ import { SemanticMarkdown } from "@semantic-md/vue";
 SDK 的事件只需转换为纯文本 chunk，再交给 Core session。输入始终被当作不可信
 Markdown 解析，永不执行 JSX、Vue Template、HTML 或 action。
 
-## 质量命令
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm test:e2e
-pnpm benchmark
-```
-
-测试覆盖完整解析、随机分片最终一致性、Patch、危险 URL、协议验证、
-React/Vue 语义组件和 SSE 顺序。Playwright 覆盖两个 Playground 的流式与 malformed
-恢复路径。
-
-## 发布 npm
-
-公开发布 `@semantic-md/protocol`、`@semantic-md/core`、`@semantic-md/react` 和
-`@semantic-md/vue`；Playground 与 `@semantic-md/example-protocol` 均为 private。
-
-首次发布当前的 `0.1.0`：
-
-```bash
-npm login
-npm whoami
-pnpm release
-```
-
-后续版本先运行 `pnpm changeset` 记录变更，提交 changeset 后运行
-`pnpm version-packages` 更新版本和 changelog，再执行 `pnpm release`。当前 changelog
-使用 GitHub 插件，执行版本更新时需要提供可读取仓库信息的 `GITHUB_TOKEN`。
-
 ## 安全默认值
 
 - HTML 只作为文本 VNode/ReactNode 渲染，不注入 DOM。
@@ -185,6 +169,7 @@ pnpm release
 - 活动尾部边界以空行、ATX 标题、闭合围栏和闭合 Container 为主；复杂块在
   `finish()` 前可能保持 Pending。
 
-更详细的设计见 [架构](docs/architecture.md)、[协议](docs/protocol.md)、
-[流式策略](docs/streaming.md)、[API](docs/api.md) 和
-[完整目录树](docs/directory-tree.md)。
+更详细的设计见[自定义 Protocol 接入指南](docs/custom-protocol.md)、
+[架构](docs/architecture.md)、[协议参考](docs/protocol.md)、[流式策略](docs/streaming.md)、
+[API](docs/api.md)和[项目结构](docs/directory-tree.md)。参与仓库开发请阅读
+[CONTRIBUTING.md](CONTRIBUTING.md)。
