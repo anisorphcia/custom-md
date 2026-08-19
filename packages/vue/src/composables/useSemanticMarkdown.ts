@@ -3,7 +3,9 @@ import {
   type Diagnostic,
   type MarkdownDocument,
   type ParseUpdate,
+  type StreamingMarkdownSession,
   type StreamingMode,
+  type StreamingUpdateHandler,
 } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
 import {
@@ -37,36 +39,33 @@ export interface UseSemanticMarkdownResult {
 export function useSemanticMarkdown(
   options: UseSemanticMarkdownOptions = {},
 ): UseSemanticMarkdownResult {
+  let updateHandler: StreamingUpdateHandler = () => {};
+  const createSession = (streamingMode: StreamingMode | undefined): StreamingMarkdownSession =>
+    createStreamingMarkdownSession({
+      ...(options.protocol ? { protocol: options.protocol } : {}),
+      ...(streamingMode ? { mode: streamingMode } : {}),
+      ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
+      onUpdate: (update) => updateHandler(update),
+    });
   const initialMode = toValue(options.streamingMode);
-  let session = createStreamingMarkdownSession({
-    ...(options.protocol ? { protocol: options.protocol } : {}),
-    ...(initialMode ? { mode: initialMode } : {}),
-    ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
-  });
+  let session = createSession(initialMode);
   const document = shallowRef(session.getSnapshot());
   const patches = shallowRef<ParseUpdate["patches"]>([]);
   const diagnostics = shallowRef<Diagnostic[]>([]);
   const status = ref<ParseUpdate["streamStatus"]>("idle");
 
-  const apply = (update: ParseUpdate): void => {
+  updateHandler = (update: ParseUpdate): void => {
     document.value = update.snapshot;
     patches.value = update.patches;
     diagnostics.value = update.diagnostics;
     status.value = update.streamStatus;
   };
-  let unsubscribe = session.subscribe(apply);
 
   const stopModeWatch = watch(
     () => toValue(options.streamingMode),
     (streamingMode) => {
-      unsubscribe();
-      session.reset();
-      session = createStreamingMarkdownSession({
-        ...(options.protocol ? { protocol: options.protocol } : {}),
-        ...(streamingMode ? { mode: streamingMode } : {}),
-        ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
-      });
-      unsubscribe = session.subscribe(apply);
+      session.dispose();
+      session = createSession(streamingMode);
       document.value = session.getSnapshot();
       patches.value = [];
       diagnostics.value = [];
@@ -75,8 +74,7 @@ export function useSemanticMarkdown(
   );
   onScopeDispose(() => {
     stopModeWatch();
-    unsubscribe();
-    session.reset();
+    session.dispose();
   });
 
   return {
@@ -95,10 +93,6 @@ export function useSemanticMarkdown(
     },
     reset(): void {
       session.reset();
-      document.value = session.getSnapshot();
-      patches.value = [];
-      diagnostics.value = [];
-      status.value = "idle";
     },
   };
 }

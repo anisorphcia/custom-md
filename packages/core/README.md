@@ -27,6 +27,7 @@ const document = session.finish().snapshot;
 
 `push()` 只接收并缓存新增文本，默认约 16ms 合并解析。需要立即处理时调用 `flush()`，
 流结束时调用 `finish()`。自定义语义节点还需传入由 `@semantic-md/protocol` 定义的
-Protocol。
+Protocol。构造参数 `onUpdate` 用于接收批量更新；`reset()` 会取消待处理输入并发送
+`idle` 更新。组件卸载或配置变化时调用静默且幂等的 `dispose()`。
 
 参阅[公共 API](../../docs/api.md)和[流式模型](../../docs/streaming.md)。

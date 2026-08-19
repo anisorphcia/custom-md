@@ -243,9 +243,12 @@ describe("streaming session", () => {
   it("batches multiple chunks into one streaming update", () => {
     vi.useFakeTimers();
     try {
-      const session = createStreamingMarkdownSession({ protocol, batchInterval: 16 });
       const updates: Array<{ streamStatus: string }> = [];
-      session.subscribe((update) => updates.push(update));
+      const session = createStreamingMarkdownSession({
+        protocol,
+        batchInterval: 16,
+        onUpdate: (update) => updates.push(update),
+      });
 
       session.push("# Bat");
       session.push("ched");
@@ -262,9 +265,11 @@ describe("streaming session", () => {
   });
 
   it("flushes explicitly and lets finish absorb pending chunks", () => {
-    const session = createStreamingMarkdownSession({ protocol });
     const statuses: string[] = [];
-    session.subscribe((update) => statuses.push(update.streamStatus));
+    const session = createStreamingMarkdownSession({
+      protocol,
+      onUpdate: (update) => statuses.push(update.streamStatus),
+    });
 
     session.push("First");
     expect(session.flush()?.streamStatus).toBe("streaming");
@@ -276,18 +281,54 @@ describe("streaming session", () => {
     expect(statuses).toEqual(["streaming", "finished"]);
   });
 
-  it("cancels a pending batch on reset", () => {
+  it("cancels a pending batch and publishes idle on reset", () => {
     vi.useFakeTimers();
     try {
-      const session = createStreamingMarkdownSession({ batchInterval: 16 });
-      const listener = vi.fn();
-      session.subscribe(listener);
+      const updates: Array<{ status: string; version: number; patchTypes: string[] }> = [];
+      const session = createStreamingMarkdownSession({
+        batchInterval: 16,
+        onUpdate: (update) =>
+          updates.push({
+            status: update.streamStatus,
+            version: update.version,
+            patchTypes: update.patches.map((patch) => patch.type),
+          }),
+      });
+      session.push("kept");
+      vi.advanceTimersByTime(16);
       session.push("discarded");
       session.reset();
 
       vi.advanceTimersByTime(16);
-      expect(listener).not.toHaveBeenCalled();
+      expect(updates).toEqual([
+        expect.objectContaining({ status: "streaming", version: 1 }),
+        expect.objectContaining({ status: "idle", version: 2 }),
+      ]);
+      expect(updates[1]?.patchTypes).toContain("remove");
       expect(session.getSnapshot().children).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("disposes silently and rejects further use", () => {
+    vi.useFakeTimers();
+    try {
+      const onUpdate = vi.fn();
+      const session = createStreamingMarkdownSession({ batchInterval: 16, onUpdate });
+      session.push("discarded");
+
+      session.dispose();
+      session.dispose();
+      vi.advanceTimersByTime(16);
+
+      expect(onUpdate).not.toHaveBeenCalled();
+      expect(() => session.push("later")).toThrow("Cannot push after dispose()");
+      expect(() => session.flush()).toThrow("Cannot flush after dispose()");
+      expect(() => session.finish()).toThrow("Cannot finish after dispose()");
+      expect(() => session.reset()).toThrow("Cannot reset after dispose()");
+      expect(() => session.getSnapshot()).toThrow("Cannot getSnapshot after dispose()");
+      expect(() => session.getDiagnostics()).toThrow("Cannot getDiagnostics after dispose()");
     } finally {
       vi.useRealTimers();
     }

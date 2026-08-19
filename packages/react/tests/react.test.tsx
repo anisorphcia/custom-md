@@ -1,7 +1,7 @@
 import { createStreamingMarkdownSession } from "@semantic-md/core";
 import { defineProtocol } from "@semantic-md/protocol";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { useEffect, useLayoutEffect } from "react";
+import { type ReactNode, StrictMode, useEffect, useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { type SemanticComponentProps, SemanticMarkdown, useSemanticMarkdown } from "../src";
@@ -118,5 +118,49 @@ describe("SemanticMarkdown", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("resets hook state through the Session idle notification", () => {
+    const { result } = renderHook(() => useSemanticMarkdown({ protocol, batchInterval: 0 }));
+
+    act(() => {
+      result.current.push("# Before reset");
+    });
+    expect(result.current.status).toBe("streaming");
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.status).toBe("idle");
+    expect(result.current.document.children).toHaveLength(0);
+    expect(result.current.diagnostics).toEqual([]);
+  });
+
+  it("recreates a disposed Session during Strict Mode effect replay", () => {
+    const wrapper = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>;
+    const { result } = renderHook(() => useSemanticMarkdown({ protocol, batchInterval: 0 }), {
+      wrapper,
+    });
+
+    act(() => {
+      result.current.push("# Strict Mode");
+    });
+
+    expect(result.current.status).toBe("streaming");
+    expect(JSON.stringify(result.current.document)).toContain("Strict Mode");
+  });
+
+  it("disposes the Session when the hook unmounts", () => {
+    const { result, unmount } = renderHook(() =>
+      useSemanticMarkdown({ protocol, batchInterval: 16 }),
+    );
+    const push = result.current.push;
+    act(() => {
+      push("pending");
+    });
+
+    unmount();
+
+    expect(() => push("after unmount")).toThrow("Cannot push after dispose()");
   });
 });

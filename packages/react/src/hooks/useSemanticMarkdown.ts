@@ -5,6 +5,7 @@ import {
   type ParseUpdate,
   type StreamingMarkdownSession,
   type StreamingMode,
+  type StreamingUpdateHandler,
 } from "@semantic-md/core";
 import type { SemanticProtocol } from "@semantic-md/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,22 +27,38 @@ export interface UseSemanticMarkdownResult {
   reset(): void;
 }
 
+function createSession(
+  protocol: SemanticProtocol | undefined,
+  streamingMode: StreamingMode | undefined,
+  batchInterval: number | undefined,
+  onUpdate: StreamingUpdateHandler,
+): StreamingMarkdownSession {
+  return createStreamingMarkdownSession({
+    ...(protocol ? { protocol } : {}),
+    ...(streamingMode ? { mode: streamingMode } : {}),
+    ...(batchInterval !== undefined ? { batchInterval } : {}),
+    onUpdate,
+  });
+}
+
 export function useSemanticMarkdown(
   options: UseSemanticMarkdownOptions = {},
 ): UseSemanticMarkdownResult {
-  const sessionOptions = {
-    ...(options.protocol ? { protocol: options.protocol } : {}),
-    ...(options.streamingMode ? { mode: options.streamingMode } : {}),
-    ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
-  };
-  const [initialSession] = useState(() => createStreamingMarkdownSession(sessionOptions));
+  const { protocol, streamingMode, batchInterval } = options;
+  const updateHandlerRef = useRef<StreamingUpdateHandler>(() => {});
+  const [initialSession] = useState(() =>
+    createSession(protocol, streamingMode, batchInterval, (update) =>
+      updateHandlerRef.current(update),
+    ),
+  );
   const sessionRef = useRef<StreamingMarkdownSession>(initialSession);
+  const sessionDisposedRef = useRef(false);
   const sessionConfigRef = useRef({
-    protocol: options.protocol,
-    streamingMode: options.streamingMode,
-    batchInterval: options.batchInterval,
+    protocol,
+    streamingMode,
+    batchInterval,
   });
-  const [document, setDocument] = useState(sessionRef.current.getSnapshot());
+  const [document, setDocument] = useState(() => sessionRef.current.getSnapshot());
   const [patches, setPatches] = useState<ParseUpdate["patches"]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [status, setStatus] = useState<ParseUpdate["streamStatus"]>("idle");
@@ -52,38 +69,40 @@ export function useSemanticMarkdown(
     setDiagnostics(update.diagnostics);
     setStatus(update.streamStatus);
   }, []);
+  updateHandlerRef.current = apply;
 
   useEffect(() => {
     const previousConfig = sessionConfigRef.current;
     const configChanged =
-      previousConfig.protocol !== options.protocol ||
-      previousConfig.streamingMode !== options.streamingMode ||
-      previousConfig.batchInterval !== options.batchInterval;
-    const session = configChanged
-      ? createStreamingMarkdownSession({
-          ...(options.protocol ? { protocol: options.protocol } : {}),
-          ...(options.streamingMode ? { mode: options.streamingMode } : {}),
-          ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
-        })
+      previousConfig.protocol !== protocol ||
+      previousConfig.streamingMode !== streamingMode ||
+      previousConfig.batchInterval !== batchInterval;
+    const needsSession = configChanged || sessionDisposedRef.current;
+    const session = needsSession
+      ? createSession(protocol, streamingMode, batchInterval, (update) =>
+          updateHandlerRef.current(update),
+        )
       : sessionRef.current;
-    if (configChanged) {
+    if (needsSession) {
       sessionRef.current = session;
+      sessionDisposedRef.current = false;
       sessionConfigRef.current = {
-        protocol: options.protocol,
-        streamingMode: options.streamingMode,
-        batchInterval: options.batchInterval,
+        protocol,
+        streamingMode,
+        batchInterval,
       };
     }
-    const unsubscribe = session.subscribe(apply);
     setDocument(session.getSnapshot());
     setPatches([]);
     setDiagnostics([]);
     setStatus("idle");
     return () => {
-      unsubscribe();
-      session.reset();
+      session.dispose();
+      if (sessionRef.current === session) {
+        sessionDisposedRef.current = true;
+      }
     };
-  }, [apply, options.protocol, options.streamingMode, options.batchInterval]);
+  }, [protocol, streamingMode, batchInterval]);
 
   return {
     document,
@@ -95,10 +114,6 @@ export function useSemanticMarkdown(
     finish: useCallback(() => sessionRef.current.finish(), []),
     reset: useCallback(() => {
       sessionRef.current.reset();
-      setDocument(sessionRef.current.getSnapshot());
-      setPatches([]);
-      setDiagnostics([]);
-      setStatus("idle");
     }, []),
   };
 }

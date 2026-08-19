@@ -26,5 +26,19 @@ stable nodes | active tail
 提前展示。未闭合结构在 `finish()` 时回退为文本并报告 Diagnostic。
 
 文本后缀优先产生 `append-text`；新节点使用 `insert`；候选段落确认成表格使用
-`replace`；状态完成使用 `stabilize`。React/Vue Adapter 订阅 Session 更新，所以输入
-合并会同时减少解析、diff 和框架更新次数。
+`replace`；状态完成使用 `stabilize`。React/Vue Adapter 通过 Session 的 `onUpdate`
+接收更新，所以输入合并会同时减少解析、diff 和框架更新次数。
+
+## 更新、Reset 与 Dispose
+
+一个 Session 对应一个更新消费方。Core 完成异步 flush 后调用构造参数中的
+`onUpdate(update)`；需要 UI、日志或性能统计等多个副作用时，由调用方在这个回调内组合。
+回调自身的同步异常属于消费方错误，不由 Core 分发或隔离。
+
+`reset()` 会取消 timer 和尚未解析的 chunk，清空 snapshot 与 diagnostics，并通过
+`onUpdate` 发送 `streamStatus: "idle"` 更新。reset 更新包含从旧 snapshot 到空文档的
+patches；同一个 Session 的 `version` 始终单调递增。
+
+组件卸载或 Session 配置变化时，React/Vue Adapter 调用静默的 `dispose()`。dispose
+释放 timer、buffer、解析状态和更新回调，不发送 idle 更新；该操作可重复调用，但
+dispose 后 Session 不可再次使用。

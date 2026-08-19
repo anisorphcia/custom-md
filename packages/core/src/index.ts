@@ -1,4 +1,3 @@
-export { hasChildren } from "./ast/types";
 export type {
   BaseNode,
   BlockquoteNode,
@@ -29,26 +28,28 @@ export type {
   ThematicBreakNode,
   UnknownNode,
 } from "./ast/types";
-export { diffAst } from "./patches/diff";
-export type { AstPatch, ParseUpdate } from "./patches/types";
-export { DIAGNOSTIC_CODES } from "./diagnostics/codes";
+export { hasChildren } from "./ast/types";
 export type { DiagnosticCode } from "./diagnostics/codes";
+export { DIAGNOSTIC_CODES } from "./diagnostics/codes";
+export type {
+  ParseMarkdownOptions,
+  StreamingMode,
+} from "./parser/parseMarkdown";
 export {
   normalizeDocument,
   parseMarkdown,
   parseMarkdownWithDiagnostics,
 } from "./parser/parseMarkdown";
-export type {
-  ParseMarkdownOptions,
-  StreamingMode,
-} from "./parser/parseMarkdown";
-export { sanitizeUrl } from "./security/url";
+export { diffAst } from "./patches/diff";
+export type { AstPatch, ParseUpdate } from "./patches/types";
 export type {
   SemanticActionRequest,
   SemanticRenderContext,
 } from "./rendering/types";
-export { createStreamingMarkdownSession } from "./streaming/session";
+export { sanitizeUrl } from "./security/url";
 export type {
   StreamingMarkdownSession,
   StreamingSessionOptions,
+  StreamingUpdateHandler,
 } from "./streaming/session";
+export { createStreamingMarkdownSession } from "./streaming/session";

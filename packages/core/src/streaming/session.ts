@@ -9,16 +9,19 @@ export interface StreamingSessionOptions {
   protocol?: SemanticProtocol;
   mode?: StreamingMode;
   batchInterval?: number;
+  onUpdate?: StreamingUpdateHandler;
 }
+
+export type StreamingUpdateHandler = (update: ParseUpdate) => void;
 
 export interface StreamingMarkdownSession {
   push(chunk: string): void;
   flush(): ParseUpdate | undefined;
   finish(): ParseUpdate;
   reset(): void;
+  dispose(): void;
   getSnapshot(): MarkdownDocument;
   getDiagnostics(): Diagnostic[];
-  subscribe(listener: (update: ParseUpdate) => void): () => void;
 }
 
 function emptyDocument(): MarkdownDocument {
@@ -133,19 +136,24 @@ export function createStreamingMarkdownSession(
   let activeDiagnostics: Diagnostic[] = [];
   let version = 0;
   let finished = false;
-  const listeners = new Set<(update: ParseUpdate) => void>();
+  let disposed = false;
+  let updateHandler = options.onUpdate;
   const batchInterval = options.batchInterval ?? 16;
   let pendingChunks = "";
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function notifyListeners(update: ParseUpdate): void {
-    for (const listener of listeners) {
-      listener(update);
+  function assertActive(operation: string): void {
+    if (disposed) {
+      throw new Error(`Cannot ${operation} after dispose()`);
     }
   }
 
+  function emitUpdate(update: ParseUpdate): void {
+    updateHandler?.(update);
+  }
+
   function clearFlushTimer(): void {
-    if (flushTimer) {
+    if (flushTimer !== undefined) {
       clearTimeout(flushTimer);
       flushTimer = undefined;
     }
@@ -192,7 +200,7 @@ export function createStreamingMarkdownSession(
       diagnostics: [...diagnostics],
       streamStatus: "streaming",
     };
-    notifyListeners(update);
+    emitUpdate(update);
     return update;
   }
 
@@ -208,6 +216,7 @@ export function createStreamingMarkdownSession(
 
   return {
     push(chunk: string): void {
+      assertActive("push");
       if (finished) {
         throw new Error("Cannot push after finish(); call reset() first");
       }
@@ -222,9 +231,11 @@ export function createStreamingMarkdownSession(
       flushTimer ??= setTimeout(flushPending, batchInterval);
     },
     flush(): ParseUpdate | undefined {
+      assertActive("flush");
       return flushPending();
     },
     finish(): ParseUpdate {
+      assertActive("finish");
       if (finished) {
         return {
           version,
@@ -256,10 +267,35 @@ export function createStreamingMarkdownSession(
         diagnostics: [...stableDiagnostics],
         streamStatus: "finished",
       };
-      notifyListeners(update);
+      emitUpdate(update);
       return update;
     },
     reset(): void {
+      assertActive("reset");
+      const previous = snapshot;
+      clearFlushTimer();
+      source = "";
+      stableBoundary = 0;
+      stableNodes = [];
+      snapshot = emptyDocument();
+      stableDiagnostics = [];
+      activeDiagnostics = [];
+      finished = false;
+      pendingChunks = "";
+      version += 1;
+      emitUpdate({
+        version,
+        patches: diffAst(previous, snapshot),
+        snapshot,
+        diagnostics: [],
+        streamStatus: "idle",
+      });
+    },
+    dispose(): void {
+      if (disposed) {
+        return;
+      }
+      clearFlushTimer();
       source = "";
       stableBoundary = 0;
       stableNodes = [];
@@ -269,19 +305,16 @@ export function createStreamingMarkdownSession(
       version = 0;
       finished = false;
       pendingChunks = "";
-      clearFlushTimer();
+      updateHandler = undefined;
+      disposed = true;
     },
     getSnapshot(): MarkdownDocument {
+      assertActive("getSnapshot");
       return snapshot;
     },
     getDiagnostics(): Diagnostic[] {
+      assertActive("getDiagnostics");
       return mergeDiagnostics(stableDiagnostics, activeDiagnostics);
-    },
-    subscribe(listener: (update: ParseUpdate) => void): () => void {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
     },
   };
 }

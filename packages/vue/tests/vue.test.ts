@@ -140,4 +140,42 @@ describe("SemanticMarkdown", () => {
       vi.useRealTimers();
     }
   });
+
+  it("resets composable state through the Session idle notification", () => {
+    const Host = defineComponent({
+      setup() {
+        return { stream: useSemanticMarkdown({ protocol, batchInterval: 0 }) };
+      },
+      render() {
+        return h("div");
+      },
+    });
+    const wrapper = mount(Host);
+
+    wrapper.vm.stream.push("# Before reset");
+    expect(wrapper.vm.stream.status.value).toBe("streaming");
+
+    wrapper.vm.stream.reset();
+    expect(wrapper.vm.stream.status.value).toBe("idle");
+    expect(wrapper.vm.stream.document.value.children).toHaveLength(0);
+    expect(wrapper.vm.stream.diagnostics.value).toEqual([]);
+  });
+
+  it("disposes the Session when the composable scope unmounts", () => {
+    const Host = defineComponent({
+      setup() {
+        return { stream: useSemanticMarkdown({ protocol, batchInterval: 16 }) };
+      },
+      render() {
+        return h("div");
+      },
+    });
+    const wrapper = mount(Host);
+    const stream = wrapper.vm.stream;
+    stream.push("pending");
+
+    wrapper.unmount();
+
+    expect(() => stream.push("after unmount")).toThrow("Cannot push after dispose()");
+  });
 });

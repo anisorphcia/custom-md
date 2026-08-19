@@ -24,13 +24,13 @@ Semantic Markdown。它描述当前实现的优化方向，不代表已经实现
 ### 1. 在输入侧合并 Chunk
 
 实施状态：核心链路已完成，资源限制待补充。Core Session 统一缓存 chunk，React/Vue
-通过 `subscribe()` 消费批量更新；相关行为由 Core 和两个 Adapter 的测试覆盖。
+通过单一 `onUpdate` 回调消费批量更新；相关行为由 Core 和两个 Adapter 的测试覆盖。
 React 首次挂载会复用初始 Session，只在 Protocol、streaming mode 或 batch interval
 变化时替换 Session，首次 passive Effect 前写入的 chunk 不会因 Session 替换而丢失。
 
 此前 React/Vue hook 每收到一个网络 chunk，就立即调用 Session `push()`、解析、生成
-Patch 并更新框架状态。优化后的 batching 统一放在 Core Session，React/Vue 只订阅
-Session 更新，不分别维护 timer 和 buffer。
+Patch 并更新框架状态。优化后的 batching 统一放在 Core Session，React/Vue 只通过
+Session 的 `onUpdate` 接收更新，不分别维护 timer 和 buffer。
 
 目标链路：
 
@@ -52,7 +52,8 @@ Session push
 session.push(chunk): void; // 将文本加入队列
 session.flush(): ParseUpdate | undefined;
 session.finish(): ParseUpdate; // 吸收缓存并产生最终更新
-session.subscribe(listener): () => void;
+session.reset(): void; // 清空并发送 idle 更新
+session.dispose(): void; // 静默释放 timer、buffer 和回调
 ```
 
 实现要求：
@@ -60,9 +61,29 @@ session.subscribe(listener): () => void;
 - 默认按约 16ms 或 `requestAnimationFrame` 合并。
 - 支持 `batchInterval: 0`，用于同步消费和测试。
 - `finish()` 必须吸收所有缓存；为避免结束时重复解析，不必先发出中间 streaming 更新。
-- `reset()`、组件卸载和 Protocol 变化时清理 timer、buffer 和订阅。
+- `reset()` 清理 timer 和 buffer，并通过 `onUpdate` 发送 idle 更新。
+- 组件卸载和 Protocol 变化时调用 `dispose()`，静默释放旧 Session。
 - 设置最大等待时间和最大 buffer 大小，避免低频流延迟过高或 buffer 无限增长。
 - 明确 Core 和 hook 的 `push()` 不再同步返回本次解析结果，这是公共 API 语义变化。
+
+#### Session 更新与释放生命周期
+
+实施状态：已完成。一个 Session 对应一份流式文档和一个消费方，Core 通过构造参数中的
+`onUpdate` 交付异步批量更新，不再提供一对多 `subscribe()`。
+
+目标语义：
+
+- `onUpdate` 依次接收 `streaming`、`finished` 和主动 reset 产生的 `idle` 更新。
+- `reset()` 取消 timer 和未处理 chunk，发送携带空 snapshot、空 diagnostics 以及清理
+  patches 的 idle 更新；同一个 Session 内的 `version` 继续单调递增。
+- `dispose()` 是静默、幂等且不可逆的终止操作：释放 timer、buffer、解析状态与回调，
+  不发送 idle 更新；dispose 后不允许继续 push、flush、finish 或 reset。
+- React/Vue 在组件卸载或配置变化时 dispose 旧 Session；调用方主动 reset 时则统一依赖
+  `onUpdate` 刷新状态。
+- 回调中的多个业务副作用由调用方自行组合，Core 不承担 listener 分发和异常隔离职责。
+
+单回调保留 Core 内部 batching 所需的异步结果出口，同时删除 listener Set、订阅快照、
+重入通知队列和取消订阅管理，使 Session 的所有权与当前 Adapter 使用方式一致。
 
 ### 2. 增量计算稳定边界
 
@@ -319,9 +340,9 @@ diff 节点总数
 
 ### 第一阶段：修正当前流式链路
 
-1. Core Session 输入 batching，React/Vue 订阅批量更新（已完成）。
+1. Core Session 输入 batching，React/Vue 通过单一回调消费批量更新（已完成）。
 2. 累积并去重 stable diagnostics（已完成）。
-3. 明确 listener 异常隔离、reset 通知和订阅生命周期。
+3. 收敛为单 `onUpdate`，明确 reset 通知和 dispose 生命周期（已完成）。
 4. 从 `stableBoundary` 开始扫描。
 
 ### 第二阶段：实现真正增量化
