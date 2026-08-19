@@ -186,6 +186,47 @@ describe("streaming session", () => {
     expect(JSON.stringify(node)).toContain('"type":"strong"');
   });
 
+  it("keeps diagnostics when invalid content moves from active to stable", () => {
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
+    const invalidDirective = ':increase[bad]{value=nope unit="percent"}';
+
+    session.push(invalidDirective);
+    expect(
+      session.getDiagnostics().filter((item) => item.code === "INVALID_ATTRIBUTE_TYPE"),
+    ).toHaveLength(1);
+
+    session.push("\n\n");
+    expect(
+      session.getDiagnostics().filter((item) => item.code === "INVALID_ATTRIBUTE_TYPE"),
+    ).toHaveLength(1);
+
+    session.push("# Later\n");
+    expect(
+      session.getDiagnostics().filter((item) => item.code === "INVALID_ATTRIBUTE_TYPE"),
+    ).toHaveLength(1);
+  });
+
+  it("clears stable and active diagnostics on reset", () => {
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
+    session.push(':increase[bad]{value=nope unit="percent"}\n\n');
+    session.push(":missing[visible]{value=1}");
+    expect(session.getDiagnostics()).not.toHaveLength(0);
+
+    session.reset();
+    expect(session.getDiagnostics()).toEqual([]);
+  });
+
+  it("finishes with the same diagnostics as a complete parse", () => {
+    const source = ':increase[bad]{value=nope unit="percent"}\n\n[unsafe](javascript:alert(1))';
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
+    session.push(source.slice(0, 24));
+    session.push(source.slice(24));
+
+    expect(session.finish().diagnostics).toEqual(
+      parseMarkdownWithDiagnostics(source, { protocol }).diagnostics,
+    );
+  });
+
   it("finishes with the same semantic AST as a complete parse", () => {
     const source =
       '# Title\n\n- one\n- two\n\n```ts\nconst x = 1;\n```\n\n:increase[up]{value=2 unit="count"}';

@@ -32,6 +32,33 @@ function emptyDocument(): MarkdownDocument {
   };
 }
 
+function diagnosticKey(diagnostic: Diagnostic): string {
+  return [
+    diagnostic.code,
+    diagnostic.message,
+    diagnostic.severity,
+    diagnostic.range?.start ?? "",
+    diagnostic.range?.end ?? "",
+    diagnostic.nodeId ?? "",
+    diagnostic.raw ?? "",
+  ].join("\u0000");
+}
+
+function mergeDiagnostics(...groups: ReadonlyArray<ReadonlyArray<Diagnostic>>): Diagnostic[] {
+  const seen = new Set<string>();
+  const merged: Diagnostic[] = [];
+  for (const group of groups) {
+    for (const diagnostic of group) {
+      const key = diagnosticKey(diagnostic);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(diagnostic);
+      }
+    }
+  }
+  return merged;
+}
+
 function findStableBoundary(source: string): number {
   let cursor = 0;
   let lastSafe = 0;
@@ -102,7 +129,8 @@ export function createStreamingMarkdownSession(
   let stableBoundary = 0;
   let stableNodes: MarkdownNode[] = [];
   let snapshot = emptyDocument();
-  let diagnostics: Diagnostic[] = [];
+  let stableDiagnostics: Diagnostic[] = [];
+  let activeDiagnostics: Diagnostic[] = [];
   let version = 0;
   let finished = false;
   const listeners = new Set<(update: ParseUpdate) => void>();
@@ -135,6 +163,7 @@ export function createStreamingMarkdownSession(
         status: "stable",
       });
       stableNodes = [...stableNodes, ...result.document.children];
+      stableDiagnostics = mergeDiagnostics(stableDiagnostics, result.diagnostics);
       stableBoundary = nextBoundary;
     }
 
@@ -145,7 +174,8 @@ export function createStreamingMarkdownSession(
       offset: stableBoundary,
       status: "pending",
     });
-    diagnostics = [...activeResult.diagnostics];
+    activeDiagnostics = [...activeResult.diagnostics];
+    const diagnostics = mergeDiagnostics(stableDiagnostics, activeDiagnostics);
     snapshot = {
       id: "root",
       type: "root",
@@ -200,7 +230,7 @@ export function createStreamingMarkdownSession(
           version,
           patches: [],
           snapshot,
-          diagnostics: [...diagnostics],
+          diagnostics: mergeDiagnostics(stableDiagnostics, activeDiagnostics),
           streamStatus: "finished",
         };
       }
@@ -213,7 +243,8 @@ export function createStreamingMarkdownSession(
         mode,
       });
       snapshot = result.document;
-      diagnostics = result.diagnostics;
+      stableDiagnostics = mergeDiagnostics(result.diagnostics);
+      activeDiagnostics = [];
       stableNodes = snapshot.children;
       stableBoundary = source.length;
       finished = true;
@@ -222,7 +253,7 @@ export function createStreamingMarkdownSession(
         version,
         patches: diffAst(previous, snapshot),
         snapshot,
-        diagnostics: [...diagnostics],
+        diagnostics: [...stableDiagnostics],
         streamStatus: "finished",
       };
       notifyListeners(update);
@@ -233,7 +264,8 @@ export function createStreamingMarkdownSession(
       stableBoundary = 0;
       stableNodes = [];
       snapshot = emptyDocument();
-      diagnostics = [];
+      stableDiagnostics = [];
+      activeDiagnostics = [];
       version = 0;
       finished = false;
       pendingChunks = "";
@@ -243,7 +275,7 @@ export function createStreamingMarkdownSession(
       return snapshot;
     },
     getDiagnostics(): Diagnostic[] {
-      return [...diagnostics];
+      return mergeDiagnostics(stableDiagnostics, activeDiagnostics);
     },
     subscribe(listener: (update: ParseUpdate) => void): () => void {
       listeners.add(listener);
