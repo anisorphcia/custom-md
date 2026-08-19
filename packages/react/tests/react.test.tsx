@@ -1,7 +1,7 @@
 import { createStreamingMarkdownSession } from "@semantic-md/core";
 import { defineProtocol } from "@semantic-md/protocol";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { type SemanticComponentProps, SemanticMarkdown, useSemanticMarkdown } from "../src";
@@ -95,6 +95,26 @@ describe("SemanticMarkdown", () => {
       });
       expect(result.current.status).toBe("streaming");
       expect(JSON.stringify(result.current.document)).toContain("Batched");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps chunks pushed before the first passive effect", () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => {
+        const stream = useSemanticMarkdown({ protocol, batchInterval: 16 });
+        useLayoutEffect(() => {
+          stream.push("# Initial");
+        }, [stream.push]);
+        return stream;
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(16);
+      });
+      expect(JSON.stringify(result.current.document)).toContain("Initial");
     } finally {
       vi.useRealTimers();
     }

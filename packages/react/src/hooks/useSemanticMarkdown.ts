@@ -36,26 +36,44 @@ export function useSemanticMarkdown(
   };
   const [initialSession] = useState(() => createStreamingMarkdownSession(sessionOptions));
   const sessionRef = useRef<StreamingMarkdownSession>(initialSession);
+  const sessionConfigRef = useRef({
+    protocol: options.protocol,
+    streamingMode: options.streamingMode,
+    batchInterval: options.batchInterval,
+  });
   const [document, setDocument] = useState(sessionRef.current.getSnapshot());
   const [patches, setPatches] = useState<ParseUpdate["patches"]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [status, setStatus] = useState<ParseUpdate["streamStatus"]>("idle");
 
-  const apply = useCallback((update: ParseUpdate): ParseUpdate => {
+  const apply = useCallback((update: ParseUpdate): void => {
     setDocument(update.snapshot);
     setPatches(update.patches);
     setDiagnostics(update.diagnostics);
     setStatus(update.streamStatus);
-    return update;
   }, []);
 
   useEffect(() => {
-    const session = createStreamingMarkdownSession({
-      ...(options.protocol ? { protocol: options.protocol } : {}),
-      ...(options.streamingMode ? { mode: options.streamingMode } : {}),
-      ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
-    });
-    sessionRef.current = session;
+    const previousConfig = sessionConfigRef.current;
+    const configChanged =
+      previousConfig.protocol !== options.protocol ||
+      previousConfig.streamingMode !== options.streamingMode ||
+      previousConfig.batchInterval !== options.batchInterval;
+    const session = configChanged
+      ? createStreamingMarkdownSession({
+          ...(options.protocol ? { protocol: options.protocol } : {}),
+          ...(options.streamingMode ? { mode: options.streamingMode } : {}),
+          ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
+        })
+      : sessionRef.current;
+    if (configChanged) {
+      sessionRef.current = session;
+      sessionConfigRef.current = {
+        protocol: options.protocol,
+        streamingMode: options.streamingMode,
+        batchInterval: options.batchInterval,
+      };
+    }
     const unsubscribe = session.subscribe(apply);
     setDocument(session.getSnapshot());
     setPatches([]);
