@@ -20,7 +20,8 @@ export interface UseSemanticMarkdownResult {
   patches: ParseUpdate["patches"];
   diagnostics: Diagnostic[];
   status: ParseUpdate["streamStatus"];
-  push(chunk: string): ParseUpdate;
+  push(chunk: string): void;
+  flush(): ParseUpdate | undefined;
   finish(): ParseUpdate;
   reset(): void;
 }
@@ -49,24 +50,31 @@ export function useSemanticMarkdown(
   }, []);
 
   useEffect(() => {
-    sessionRef.current = createStreamingMarkdownSession({
+    const session = createStreamingMarkdownSession({
       ...(options.protocol ? { protocol: options.protocol } : {}),
       ...(options.streamingMode ? { mode: options.streamingMode } : {}),
       ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
     });
-    setDocument(sessionRef.current.getSnapshot());
+    sessionRef.current = session;
+    const unsubscribe = session.subscribe(apply);
+    setDocument(session.getSnapshot());
     setPatches([]);
     setDiagnostics([]);
     setStatus("idle");
-  }, [options.protocol, options.streamingMode, options.batchInterval]);
+    return () => {
+      unsubscribe();
+      session.reset();
+    };
+  }, [apply, options.protocol, options.streamingMode, options.batchInterval]);
 
   return {
     document,
     patches,
     diagnostics,
     status,
-    push: useCallback((chunk: string) => apply(sessionRef.current.push(chunk)), [apply]),
-    finish: useCallback(() => apply(sessionRef.current.finish()), [apply]),
+    push: useCallback((chunk: string) => sessionRef.current.push(chunk), []),
+    flush: useCallback(() => sessionRef.current.flush(), []),
+    finish: useCallback(() => sessionRef.current.finish(), []),
     reset: useCallback(() => {
       sessionRef.current.reset();
       setDocument(sessionRef.current.getSnapshot());

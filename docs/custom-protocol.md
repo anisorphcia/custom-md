@@ -241,8 +241,9 @@ function StreamingAnswer() {
 }
 ```
 
-必须在正常流结束时调用 `finish()`，它会执行最终规范解析。不要把 SSE 的完整 JSON
-事件传给 `push()`，只传其中的文本增量。
+`push()` 会先缓存文本，并按 Session 的 `batchInterval` 合并解析。必须在正常流结束时
+调用 `finish()`，它会吸收剩余缓存并执行最终规范解析。不要把 SSE 的完整 JSON 事件
+传给 `push()`，只传其中的文本增量；需要立即处理缓存时可以调用 `flush()`。
 
 ## 5. Vue：注册组件并渲染
 

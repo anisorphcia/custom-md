@@ -28,7 +28,8 @@ export interface UseSemanticMarkdownResult {
   patches: ShallowRef<ParseUpdate["patches"]>;
   diagnostics: ShallowRef<Diagnostic[]>;
   status: Ref<ParseUpdate["streamStatus"]>;
-  push(chunk: string): ParseUpdate;
+  push(chunk: string): void;
+  flush(): ParseUpdate | undefined;
   finish(): ParseUpdate;
   reset(): void;
 }
@@ -47,40 +48,50 @@ export function useSemanticMarkdown(
   const diagnostics = shallowRef<Diagnostic[]>([]);
   const status = ref<ParseUpdate["streamStatus"]>("idle");
 
+  const apply = (update: ParseUpdate): void => {
+    document.value = update.snapshot;
+    patches.value = update.patches;
+    diagnostics.value = update.diagnostics;
+    status.value = update.streamStatus;
+  };
+  let unsubscribe = session.subscribe(apply);
+
   const stopModeWatch = watch(
     () => toValue(options.streamingMode),
     (streamingMode) => {
+      unsubscribe();
+      session.reset();
       session = createStreamingMarkdownSession({
         ...(options.protocol ? { protocol: options.protocol } : {}),
         ...(streamingMode ? { mode: streamingMode } : {}),
         ...(options.batchInterval !== undefined ? { batchInterval: options.batchInterval } : {}),
       });
+      unsubscribe = session.subscribe(apply);
       document.value = session.getSnapshot();
       patches.value = [];
       diagnostics.value = [];
       status.value = "idle";
     },
   );
-
-  const apply = (update: ParseUpdate): ParseUpdate => {
-    document.value = update.snapshot;
-    patches.value = update.patches;
-    diagnostics.value = update.diagnostics;
-    status.value = update.streamStatus;
-    return update;
-  };
-  onScopeDispose(stopModeWatch);
+  onScopeDispose(() => {
+    stopModeWatch();
+    unsubscribe();
+    session.reset();
+  });
 
   return {
     document,
     patches,
     diagnostics,
     status,
-    push(chunk: string): ParseUpdate {
-      return apply(session.push(chunk));
+    push(chunk: string): void {
+      session.push(chunk);
+    },
+    flush(): ParseUpdate | undefined {
+      return session.flush();
     },
     finish(): ParseUpdate {
-      return apply(session.finish());
+      return session.finish();
     },
     reset(): void {
       session.reset();

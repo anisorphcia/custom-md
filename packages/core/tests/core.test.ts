@@ -1,5 +1,5 @@
 import { defineProtocol } from "@semantic-md/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
   createStreamingMarkdownSession,
@@ -59,28 +59,34 @@ describe("parseMarkdown", () => {
 describe("streaming session", () => {
   it("renders a heading before the line is complete and appends text", () => {
     const session = createStreamingMarkdownSession({ protocol });
-    expect(session.push("# ").snapshot.children[0]?.type).toBe("heading");
+    session.push("# ");
+    expect(session.flush()?.snapshot.children[0]?.type).toBe("heading");
     session.push("Rep");
-    const update = session.push("ort");
-    expect(update.patches.some((patch) => patch.type === "append-text")).toBe(true);
-    expect(session.push("\n").snapshot.children[0]?.status).toBe("stable");
+    session.flush();
+    session.push("ort");
+    expect(session.flush()?.patches.some((patch) => patch.type === "append-text")).toBe(true);
+    session.push("\n");
+    expect(session.flush()?.snapshot.children[0]?.status).toBe("stable");
   });
 
   it("confirms a GFM table after its delimiter row", () => {
     const session = createStreamingMarkdownSession({ protocol });
     session.push("| Name | Value |\n");
+    session.flush();
     expect(session.getSnapshot().children[0]?.type).toBe("paragraph");
-    const update = session.push("| --- | ---: |\n");
+    session.push("| --- | ---: |\n");
+    const update = session.flush();
     expect(session.getSnapshot().children[0]?.type).toBe("table");
-    expect(update.patches.some((patch) => patch.type === "replace")).toBe(true);
-    const rowUpdate = session.push("| Revenue | 12 |\n");
-    expect(rowUpdate.patches.some((patch) => patch.type === "insert")).toBe(true);
+    expect(update?.patches.some((patch) => patch.type === "replace")).toBe(true);
+    session.push("| Revenue | 12 |\n");
+    expect(session.flush()?.patches.some((patch) => patch.type === "insert")).toBe(true);
   });
 
   it("grows lists and fenced code blocks before completion", () => {
     const listSession = createStreamingMarkdownSession({ protocol });
     listSession.push("- one\n");
     listSession.push("- two");
+    listSession.flush();
     const list = listSession.getSnapshot().children[0];
     expect(list?.type).toBe("list");
     expect(list && "children" in list ? list.children : []).toHaveLength(2);
@@ -88,6 +94,7 @@ describe("streaming session", () => {
     const codeSession = createStreamingMarkdownSession({ protocol });
     codeSession.push("```ts\n");
     codeSession.push("const value = 1;");
+    codeSession.flush();
     const code = codeSession.getSnapshot().children[0];
     expect(code?.type).toBe("codeBlock");
     expect(code?.status).toBe("pending");
@@ -97,6 +104,7 @@ describe("streaming session", () => {
   it("does not stabilize a code fence closed by a shorter marker", () => {
     const session = createStreamingMarkdownSession();
     session.push("````js\nconst value = 1;\n```\n");
+    session.flush();
 
     const pendingCode = session.getSnapshot().children[0];
     expect(pendingCode?.type).toBe("codeBlock");
@@ -104,12 +112,14 @@ describe("streaming session", () => {
     expect(pendingCode && "value" in pendingCode ? pendingCode.value : "").toContain("```");
 
     session.push("````\n");
+    session.flush();
     expect(session.getSnapshot().children[0]?.status).toBe("stable");
   });
 
   it("provides provisional inline nodes and falls back at finish", () => {
     const session = createStreamingMarkdownSession({ protocol, mode: "optimistic" });
     session.push("This is *important");
+    session.flush();
     expect(JSON.stringify(session.getSnapshot())).toContain('"confidence":"provisional"');
     session.finish();
     expect(JSON.stringify(session.getSnapshot())).not.toContain('"confidence":"provisional"');
@@ -121,6 +131,7 @@ describe("streaming session", () => {
   it("collects only complete attributes on a pending directive", () => {
     const session = createStreamingMarkdownSession({ protocol, mode: "optimistic" });
     session.push(':increase[up]{value=12 unit="per');
+    session.flush();
     const snapshot = JSON.stringify(session.getSnapshot());
     expect(snapshot).toContain('"rawAttributes":{"value":"12"}');
     expect(snapshot).not.toContain('"unit":"per"');
@@ -133,6 +144,7 @@ describe("streaming session", () => {
   it("recovers incomplete inline code as text", () => {
     const session = createStreamingMarkdownSession({ mode: "optimistic" });
     session.push("Use `pending");
+    session.flush();
     expect(session.getSnapshot().children[0]?.status).toBe("pending");
     const update = session.finish();
     expect(JSON.stringify(update.snapshot)).toContain("`pending");
@@ -167,6 +179,7 @@ describe("streaming session", () => {
     const session = createStreamingMarkdownSession({ protocol });
     session.push(':::risk{level="high"}\n');
     session.push("**Check** the payment");
+    session.flush();
     const node = session.getSnapshot().children[0];
     expect(node?.type).toBe("semantic");
     expect(node?.status).toBe("pending");
@@ -184,5 +197,58 @@ describe("streaming session", () => {
     expect(normalizeDocument(streamed)).toEqual(
       normalizeDocument(parseMarkdown(source, { protocol })),
     );
+  });
+
+  it("batches multiple chunks into one streaming update", () => {
+    vi.useFakeTimers();
+    try {
+      const session = createStreamingMarkdownSession({ protocol, batchInterval: 16 });
+      const updates: Array<{ streamStatus: string }> = [];
+      session.subscribe((update) => updates.push(update));
+
+      session.push("# Bat");
+      session.push("ched");
+      expect(session.getSnapshot().children).toHaveLength(0);
+      expect(updates).toHaveLength(0);
+
+      vi.advanceTimersByTime(16);
+      expect(updates).toHaveLength(1);
+      expect(updates[0]?.streamStatus).toBe("streaming");
+      expect(JSON.stringify(session.getSnapshot())).toContain("Batched");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes explicitly and lets finish absorb pending chunks", () => {
+    const session = createStreamingMarkdownSession({ protocol });
+    const statuses: string[] = [];
+    session.subscribe((update) => statuses.push(update.streamStatus));
+
+    session.push("First");
+    expect(session.flush()?.streamStatus).toBe("streaming");
+    expect(session.flush()).toBeUndefined();
+
+    session.push(" second");
+    const finished = session.finish();
+    expect(JSON.stringify(finished.snapshot)).toContain("First second");
+    expect(statuses).toEqual(["streaming", "finished"]);
+  });
+
+  it("cancels a pending batch on reset", () => {
+    vi.useFakeTimers();
+    try {
+      const session = createStreamingMarkdownSession({ batchInterval: 16 });
+      const listener = vi.fn();
+      session.subscribe(listener);
+      session.push("discarded");
+      session.reset();
+
+      vi.advanceTimersByTime(16);
+      expect(listener).not.toHaveBeenCalled();
+      expect(session.getSnapshot().children).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

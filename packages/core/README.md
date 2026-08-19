@@ -25,7 +25,8 @@ session.push("ing");
 const document = session.finish().snapshot;
 ```
 
-`push()` 只接收新增文本，流结束时调用 `finish()`。自定义语义节点还需传入由
-`@semantic-md/protocol` 定义的 Protocol。
+`push()` 只接收并缓存新增文本，默认约 16ms 合并解析。需要立即处理时调用 `flush()`，
+流结束时调用 `finish()`。自定义语义节点还需传入由 `@semantic-md/protocol` 定义的
+Protocol。
 
 参阅[公共 API](../../docs/api.md)和[流式模型](../../docs/streaming.md)。

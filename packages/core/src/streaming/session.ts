@@ -12,7 +12,8 @@ export interface StreamingSessionOptions {
 }
 
 export interface StreamingMarkdownSession {
-  push(chunk: string): ParseUpdate;
+  push(chunk: string): void;
+  flush(): ParseUpdate | undefined;
   finish(): ParseUpdate;
   reset(): void;
   getSnapshot(): MarkdownDocument;
@@ -106,8 +107,8 @@ export function createStreamingMarkdownSession(
   let finished = false;
   const listeners = new Set<(update: ParseUpdate) => void>();
   const batchInterval = options.batchInterval ?? 16;
-  let pendingNotification: ParseUpdate | undefined;
-  let notificationTimer: ReturnType<typeof setTimeout> | undefined;
+  let pendingChunks = "";
+  let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
   function notifyListeners(update: ParseUpdate): void {
     for (const listener of listeners) {
@@ -115,40 +116,11 @@ export function createStreamingMarkdownSession(
     }
   }
 
-  function flushNotification(): void {
-    if (notificationTimer) {
-      clearTimeout(notificationTimer);
-      notificationTimer = undefined;
+  function clearFlushTimer(): void {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = undefined;
     }
-    if (pendingNotification) {
-      const update = pendingNotification;
-      pendingNotification = undefined;
-      notifyListeners(update);
-    }
-  }
-
-  function clearNotification(): void {
-    if (notificationTimer) {
-      clearTimeout(notificationTimer);
-      notificationTimer = undefined;
-    }
-    pendingNotification = undefined;
-  }
-
-  function emit(update: ParseUpdate, immediate = false): ParseUpdate {
-    if (immediate || batchInterval <= 0) {
-      flushNotification();
-      notifyListeners(update);
-      return update;
-    }
-    pendingNotification = pendingNotification
-      ? {
-          ...update,
-          patches: [...pendingNotification.patches, ...update.patches],
-        }
-      : update;
-    notificationTimer ??= setTimeout(flushNotification, batchInterval);
-    return update;
   }
 
   function streamingUpdate(): ParseUpdate {
@@ -183,31 +155,44 @@ export function createStreamingMarkdownSession(
       children: [...stableNodes, ...activeResult.document.children],
     };
     version += 1;
-    return emit({
+    const update: ParseUpdate = {
       version,
       patches: diffAst(previous, snapshot),
       snapshot,
       diagnostics: [...diagnostics],
       streamStatus: "streaming",
-    });
+    };
+    notifyListeners(update);
+    return update;
+  }
+
+  function flushPending(): ParseUpdate | undefined {
+    clearFlushTimer();
+    if (!pendingChunks) {
+      return undefined;
+    }
+    source += pendingChunks;
+    pendingChunks = "";
+    return streamingUpdate();
   }
 
   return {
-    push(chunk: string): ParseUpdate {
+    push(chunk: string): void {
       if (finished) {
         throw new Error("Cannot push after finish(); call reset() first");
       }
       if (!chunk) {
-        return {
-          version,
-          patches: [],
-          snapshot,
-          diagnostics: [...diagnostics],
-          streamStatus: source ? "streaming" : "idle",
-        };
+        return;
       }
-      source += chunk;
-      return streamingUpdate();
+      pendingChunks += chunk;
+      if (batchInterval <= 0) {
+        flushPending();
+        return;
+      }
+      flushTimer ??= setTimeout(flushPending, batchInterval);
+    },
+    flush(): ParseUpdate | undefined {
+      return flushPending();
     },
     finish(): ParseUpdate {
       if (finished) {
@@ -219,6 +204,9 @@ export function createStreamingMarkdownSession(
           streamStatus: "finished",
         };
       }
+      clearFlushTimer();
+      source += pendingChunks;
+      pendingChunks = "";
       const previous = snapshot;
       const result = parseMarkdownWithDiagnostics(source, {
         ...protocolOptions,
@@ -230,16 +218,15 @@ export function createStreamingMarkdownSession(
       stableBoundary = source.length;
       finished = true;
       version += 1;
-      return emit(
-        {
-          version,
-          patches: diffAst(previous, snapshot),
-          snapshot,
-          diagnostics: [...diagnostics],
-          streamStatus: "finished",
-        },
-        true,
-      );
+      const update: ParseUpdate = {
+        version,
+        patches: diffAst(previous, snapshot),
+        snapshot,
+        diagnostics: [...diagnostics],
+        streamStatus: "finished",
+      };
+      notifyListeners(update);
+      return update;
     },
     reset(): void {
       source = "";
@@ -249,7 +236,8 @@ export function createStreamingMarkdownSession(
       diagnostics = [];
       version = 0;
       finished = false;
-      clearNotification();
+      pendingChunks = "";
+      clearFlushTimer();
     },
     getSnapshot(): MarkdownDocument {
       return snapshot;

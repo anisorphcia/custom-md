@@ -37,7 +37,7 @@ let nextEventId = 1;
 const rawElement = ref<HTMLPreElement>();
 let eventSource: EventSource | undefined;
 let requestAbortController: AbortController | undefined;
-const { document, diagnostics, status, push, finish, reset } = useSemanticMarkdown({
+const { document, patches, diagnostics, status, push, finish, reset } = useSemanticMarkdown({
   protocol: demoProtocol,
   streamingMode: mode,
 });
@@ -49,6 +49,12 @@ watch(rawText, async () => {
     if (rawElement.value) {
       rawElement.value.scrollTop = rawElement.value.scrollHeight;
     }
+  }
+});
+
+watch(patches, (nextPatches) => {
+  if (nextPatches.length > 0) {
+    patchLog.value = [...patchLog.value, ...nextPatches].slice(-200);
   }
 });
 
@@ -146,12 +152,10 @@ function start(): void {
       return;
     }
     rawText.value += text;
-    const update = push(text);
-    patchLog.value = [...patchLog.value, ...update.patches].slice(-200);
+    push(text);
   });
   stream.addEventListener("done", () => {
-    const update = finish();
-    patchLog.value = [...patchLog.value, ...update.patches].slice(-200);
+    finish();
     connection.value = "finished";
     stream.close();
     eventSource = undefined;
@@ -196,16 +200,14 @@ async function startOpenAi(baseUrl: string): Promise<void> {
           const text = parseDelta(event.data);
           if (text !== undefined) {
             rawText.value += text;
-            const update = push(text);
-            patchLog.value = [...patchLog.value, ...update.patches].slice(-200);
+            push(text);
           }
         }
         if (event.event === "failure") {
           throw new Error(parseFailure(event.data)?.message ?? "AI 请求失败");
         }
         if (event.event === "done") {
-          const update = finish();
-          patchLog.value = [...patchLog.value, ...update.patches].slice(-200);
+          finish();
           connection.value = "finished";
           receivedDone = true;
         }

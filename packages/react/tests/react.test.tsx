@@ -1,10 +1,10 @@
 import { createStreamingMarkdownSession } from "@semantic-md/core";
 import { defineProtocol } from "@semantic-md/protocol";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { type SemanticComponentProps, SemanticMarkdown } from "../src";
+import { type SemanticComponentProps, SemanticMarkdown, useSemanticMarkdown } from "../src";
 
 const protocol = defineProtocol({
   version: "1",
@@ -58,7 +58,7 @@ describe("SemanticMarkdown", () => {
       }, []);
       return <span>{props.children}</span>;
     }
-    const session = createStreamingMarkdownSession({ protocol });
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
     session.push(':action[Run]{name="run"}');
     const view = render(
       <SemanticMarkdown
@@ -77,5 +77,26 @@ describe("SemanticMarkdown", () => {
     );
     expect(mounts).toBe(1);
     expect(unmounts).toBe(0);
+  });
+
+  it("applies batched session updates through the streaming hook", () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useSemanticMarkdown({ protocol, batchInterval: 16 }));
+
+      act(() => {
+        result.current.push("# Bat");
+        result.current.push("ched");
+      });
+      expect(result.current.document.children).toHaveLength(0);
+
+      act(() => {
+        vi.advanceTimersByTime(16);
+      });
+      expect(result.current.status).toBe("streaming");
+      expect(JSON.stringify(result.current.document)).toContain("Batched");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

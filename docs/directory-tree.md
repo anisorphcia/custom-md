@@ -32,4 +32,5 @@ Apps 均为 private，不作为 SDK 发布。其代码用于展示接入方式�
 - `packages/example-protocol`：Playground 共用的内部示例，不公开发布，也不包含 React
   或 Vue 组件。
 
-依赖方向见[架构文档](./architecture.md)，公共导出见[API 文档](./api.md)。
+依赖方向见[架构文档](./architecture.md)，公共导出见[API 文档](./api.md)，后续演进计划
+见[架构 Review 与优化路线](./architecture-review.md)。

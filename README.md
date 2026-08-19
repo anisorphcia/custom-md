@@ -121,8 +121,9 @@ import { SemanticMarkdown } from "@semantic-md/react";
 />;
 ```
 
-流式场景使用 `useSemanticMarkdown()` 返回的 `push`、`finish`、`reset` 和
-`document`，再将 `document` 传给 `SemanticMarkdown`。
+流式场景使用 `useSemanticMarkdown()` 返回的 `push`、`flush`、`finish`、`reset` 和
+`document`，再将 `document` 传给 `SemanticMarkdown`。`push()` 默认在 Core Session
+中短暂缓存并合并解析，减少高频 chunk 导致的重复计算和页面更新。
 
 ## Vue
 
@@ -165,11 +166,11 @@ Markdown 解析，永不执行 JSX、Vue Template、HTML 或 action。
 - GFM 表格必须等待分隔行才能确认。
 - Pending 代码块不做语法高亮。
 - `finish()` 会执行一次完整规范解析；这是用于最终正确性协调的设计。
-- `push()` 为调用方立即返回 Patch；订阅通知默认以 16ms 合并。
+- `push()` 默认缓存约 16ms 后合并解析；`flush()` 可要求立即处理缓存。
 - 活动尾部边界以空行、ATX 标题、闭合围栏和闭合 Container 为主；复杂块在
   `finish()` 前可能保持 Pending。
 
 更详细的设计见[自定义 Protocol 接入指南](docs/custom-protocol.md)、
 [架构](docs/architecture.md)、[协议参考](docs/protocol.md)、[流式策略](docs/streaming.md)、
-[API](docs/api.md)和[项目结构](docs/directory-tree.md)。参与仓库开发请阅读
-[CONTRIBUTING.md](CONTRIBUTING.md)。
+[API](docs/api.md)、[架构 Review 与优化路线](docs/architecture-review.md)和
+[项目结构](docs/directory-tree.md)。参与仓库开发请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。

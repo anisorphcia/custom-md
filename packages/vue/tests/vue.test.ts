@@ -1,9 +1,9 @@
 import { defineProtocol } from "@semantic-md/protocol";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
-import { defineComponent, h, onMounted, onUnmounted } from "vue";
+import { describe, expect, it, vi } from "vitest";
+import { defineComponent, h, nextTick, onMounted, onUnmounted } from "vue";
 import { z } from "zod";
-import { SemanticMarkdown } from "../src";
+import { SemanticMarkdown, useSemanticMarkdown } from "../src";
 
 const protocol = defineProtocol({
   version: "1",
@@ -76,7 +76,7 @@ describe("SemanticMarkdown", () => {
       },
     });
     const { createStreamingMarkdownSession } = await import("@semantic-md/core");
-    const session = createStreamingMarkdownSession({ protocol });
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
     session.push(':action[Run]{name="run"}');
     const wrapper = mount(SemanticMarkdown, {
       props: {
@@ -98,7 +98,7 @@ describe("SemanticMarkdown", () => {
       },
     });
     const { createStreamingMarkdownSession } = await import("@semantic-md/core");
-    const session = createStreamingMarkdownSession({ protocol });
+    const session = createStreamingMarkdownSession({ protocol, batchInterval: 0 });
     session.push(':::report{label="收入"}\n收入');
     const wrapper = mount(SemanticMarkdown, {
       props: {
@@ -112,5 +112,32 @@ describe("SemanticMarkdown", () => {
     session.push("同比增长 12.5%\n:::");
     await wrapper.setProps({ document: session.getSnapshot() });
     expect(wrapper.get("article").text()).toContain("收入同比增长 12.5%");
+  });
+
+  it("applies batched session updates through the streaming composable", async () => {
+    vi.useFakeTimers();
+    try {
+      const Host = defineComponent({
+        setup() {
+          const stream = useSemanticMarkdown({ protocol, batchInterval: 16 });
+          return { stream };
+        },
+        render() {
+          return h("div", JSON.stringify(this.stream.document.value));
+        },
+      });
+      const wrapper = mount(Host);
+
+      wrapper.vm.stream.push("# Bat");
+      wrapper.vm.stream.push("ched");
+      expect(wrapper.vm.stream.document.value.children).toHaveLength(0);
+
+      vi.advanceTimersByTime(16);
+      await nextTick();
+      expect(wrapper.vm.stream.status.value).toBe("streaming");
+      expect(JSON.stringify(wrapper.vm.stream.document.value)).toContain("Batched");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

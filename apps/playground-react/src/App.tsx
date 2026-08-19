@@ -112,7 +112,7 @@ export default function App() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const requestAbortRef = useRef<AbortController | null>(null);
   const rawRef = useRef<HTMLPreElement | null>(null);
-  const { document, diagnostics, status, push, finish, reset } = useSemanticMarkdown({
+  const { document, patches, diagnostics, status, push, finish, reset } = useSemanticMarkdown({
     protocol: demoProtocol,
     streamingMode: mode,
   });
@@ -123,6 +123,12 @@ export default function App() {
       rawRef.current.scrollTop = rawRef.current.scrollHeight;
     }
   }, [autoScroll, rawText]);
+
+  useEffect(() => {
+    if (patches.length > 0) {
+      setPatchLog((current) => [...current, ...patches].slice(-200));
+    }
+  }, [patches]);
 
   useEffect(
     () => () => {
@@ -180,12 +186,10 @@ export default function App() {
         return;
       }
       setRawText((current) => current + payload.text);
-      const update = push(payload.text);
-      setPatchLog((current) => [...current, ...update.patches].slice(-200));
+      push(payload.text);
     });
     stream.addEventListener("done", () => {
-      const update = finish();
-      setPatchLog((current) => [...current, ...update.patches].slice(-200));
+      finish();
       setConnection("finished");
       stream.close();
       eventSourceRef.current = null;
@@ -243,16 +247,14 @@ export default function App() {
             const payload = parseDelta(event.data);
             if (payload) {
               setRawText((current) => current + payload.text);
-              const update = push(payload.text);
-              setPatchLog((current) => [...current, ...update.patches].slice(-200));
+              push(payload.text);
             }
           }
           if (event.event === "failure") {
             throw new Error(parseFailure(event.data)?.message ?? "AI 请求失败");
           }
           if (event.event === "done") {
-            const update = finish();
-            setPatchLog((current) => [...current, ...update.patches].slice(-200));
+            finish();
             setConnection("finished");
             receivedDone = true;
           }

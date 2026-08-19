@@ -2,6 +2,10 @@
 
 Session 保留完整源文本，但普通 `push()` 不重新解析已经稳定的节点。
 
+`push(chunk)` 先缓存新增文本。默认约 16ms 后，Session 将窗口内的 chunk 合并并执行
+一次 `streamingUpdate()`；`batchInterval: 0` 用于需要同步 flush 的场景。调用方也可以
+用 `flush()` 立即处理缓存。`finish()` 会吸收尚未 flush 的文本并执行一次最终规范解析。
+
 ```text
 stable nodes | active tail
 ```
@@ -22,4 +26,5 @@ stable nodes | active tail
 提前展示。未闭合结构在 `finish()` 时回退为文本并报告 Diagnostic。
 
 文本后缀优先产生 `append-text`；新节点使用 `insert`；候选段落确认成表格使用
-`replace`；状态完成使用 `stabilize`。订阅通知默认在约 16ms 内合并高频 Patch。
+`replace`；状态完成使用 `stabilize`。React/Vue Adapter 订阅 Session 更新，所以输入
+合并会同时减少解析、diff 和框架更新次数。

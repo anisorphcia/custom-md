@@ -1,6 +1,6 @@
-import { expect, it } from "vitest";
 import fc from "fast-check";
-import { normalizeDocument, parseMarkdown, createStreamingMarkdownSession } from "../src";
+import { expect, it } from "vitest";
+import { createStreamingMarkdownSession, normalizeDocument, parseMarkdown } from "../src";
 
 const sources = [
   "# Report\n\n**Strong** and *emphasis*.\n\n- one\n- two\n",
@@ -18,7 +18,7 @@ for (const [scenarioIndex, source] of sources.entries()) {
           maxLength: 40,
         }),
         (sizes: number[]) => {
-          const session = createStreamingMarkdownSession();
+          const session = createStreamingMarkdownSession({ batchInterval: 0 });
           let offset = 0;
           let index = 0;
           while (offset < source.length) {

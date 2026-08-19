@@ -49,8 +49,9 @@ const components: SemanticComponentMap = {
 </template>
 ```
 
-流式场景使用 `useSemanticMarkdown({ protocol })`，逐段调用 `push(text)`，结束时调用
-`finish()`，再将 `document` 传给 `<SemanticMarkdown>`。
+流式场景使用 `useSemanticMarkdown({ protocol })`，逐段调用 `push(text)`。Core Session
+会合并高频输入并通知 composable，结束时调用 `finish()`，再将 `document` 传给
+`<SemanticMarkdown>`。
 
 参阅[自定义 Protocol 接入指南](../../docs/custom-protocol.md)和
 [公共 API](../../docs/api.md)。

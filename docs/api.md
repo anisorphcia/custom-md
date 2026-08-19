@@ -51,7 +51,8 @@ const session = createStreamingMarkdownSession({
 
 ```ts
 interface StreamingMarkdownSession {
-  push(chunk: string): ParseUpdate;
+  push(chunk: string): void;
+  flush(): ParseUpdate | undefined;
   finish(): ParseUpdate;
   reset(): void;
   getSnapshot(): MarkdownDocument;
@@ -60,9 +61,13 @@ interface StreamingMarkdownSession {
 }
 ```
 
-`push()` 只接收新增的 Markdown 文本，不能传 SSE JSON。正常流结束时必须调用
-`finish()`；之后继续 `push()` 会抛错，需先 `reset()`。`batchInterval` 只合并订阅通知，
-每次 `push()` 仍立即返回 `ParseUpdate`。
+`push()` 只接收新增的 Markdown 文本，不能传 SSE JSON。输入先由 Session 缓存，默认
+约 16ms 后将这段时间内的 chunk 合并，只执行一次解析、diff 和订阅通知。
+`batchInterval: 0` 会在每次 `push()` 时同步 flush。
+
+`flush()` 可以立即处理当前缓存；没有待处理文本时返回 `undefined`。正常流结束时必须
+调用 `finish()`，它会吸收尚未 flush 的文本并直接产生最终更新；之后继续 `push()` 会
+抛错，需先 `reset()`。
 
 `ParseUpdate` 包含 `version`、`patches`、`snapshot`、`diagnostics` 和 `streamStatus`。
 
@@ -84,8 +89,9 @@ interface StreamingMarkdownSession {
 
 ### `useSemanticMarkdown(options?)`
 
-返回 `document`、`patches`、`diagnostics`、`status`、`push`、`finish` 和 `reset`。
-流式场景将返回的 `document` 传给 `<SemanticMarkdown>`。
+返回 `document`、`patches`、`diagnostics`、`status`、`push`、`flush`、`finish` 和
+`reset`。Hook 订阅 Core Session 的批量更新；流式场景将返回的 `document` 传给
+`<SemanticMarkdown>`。
 
 还导出 `renderNode`、`SemanticMarkdownContext`、`useSemanticMarkdownContext` 和组件
 相关类型。
@@ -96,8 +102,8 @@ Vue `<SemanticMarkdown>` 与 React 组件使用相同数据契约；props 使用
 事件为 `diagnostic`、`action` 和 `reference`。
 
 `useSemanticMarkdown(options?)` 返回 refs：`document`、`patches`、`diagnostics`、
-`status`，以及 `push`、`finish`、`reset`。在 `<script setup>` 中将这些 refs 解构为
-顶层变量后，template 会自动解包。
+`status`，以及 `push`、`flush`、`finish`、`reset`。Composable 订阅 Core Session 的
+批量更新；在 `<script setup>` 中将这些 refs 解构为顶层变量后，template 会自动解包。
 
 还导出 `renderNode`、`semanticMarkdownContextKey`、`useSemanticMarkdownContext` 和组件
 相关类型。
