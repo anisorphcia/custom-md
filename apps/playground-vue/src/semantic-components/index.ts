@@ -169,6 +169,161 @@ function sceneContainer(kind: "guidance" | "milestone" | "incident" | "evidence"
   });
 }
 
+const ClinicalResult = defineComponent({
+  props: sharedProps,
+  setup(props, { slots }) {
+    return () => {
+      const attributes = props.attributes;
+      const flag = stringAttribute(attributes, "flag") ?? "normal";
+      const flagLabels: Record<string, string> = {
+        normal: "参考范围内",
+        high: "高于参考值",
+        low: "低于参考值",
+      };
+      return h(
+        "article",
+        { class: "clinical-result", "data-flag": flag, "data-status": props.status },
+        [
+          h("header", [
+            h("span", { class: "clinical-mark", "aria-hidden": "true" }, "+"),
+            h("div", [
+              h("small", "LAB RESULT / 检验项目"),
+              h("strong", stringAttribute(attributes, "test")),
+            ]),
+            h("time", stringAttribute(attributes, "collectedAt")),
+          ]),
+          h("div", { class: "clinical-reading" }, [
+            h("strong", `${numberAttribute(attributes, "value")}`),
+            h("span", stringAttribute(attributes, "unit")),
+            h("dl", [
+              h("div", [h("dt", "参考区间"), h("dd", stringAttribute(attributes, "reference"))]),
+              h("div", [h("dt", "结果标记"), h("dd", flagLabels[flag] ?? flag)]),
+            ]),
+          ]),
+          h("div", { class: "clinical-note" }, slots.default?.()),
+        ],
+      );
+    };
+  },
+});
+
+const FieldObservation = defineComponent({
+  props: sharedProps,
+  setup(props, { slots }) {
+    return () => {
+      const attributes = props.attributes;
+      const moisture = numberAttribute(attributes, "soilMoisture") ?? 0;
+      const condition = stringAttribute(attributes, "condition") ?? "optimal";
+      const conditionLabels: Record<string, string> = {
+        optimal: "墒情适宜",
+        watch: "持续观察",
+        urgent: "立即处理",
+      };
+      return h(
+        "article",
+        {
+          class: "field-observation",
+          "data-condition": condition,
+          "data-status": props.status,
+        },
+        [
+          h("header", [
+            h("div", [h("small", "FIELD NOTE"), h("strong", stringAttribute(attributes, "field"))]),
+            h("time", stringAttribute(attributes, "observedAt")),
+          ]),
+          h("div", { class: "field-dashboard" }, [
+            h("div", { class: "crop-stage" }, [
+              h("span", { "aria-hidden": "true" }, "⌁"),
+              h("div", [
+                h("small", stringAttribute(attributes, "crop")),
+                h("strong", stringAttribute(attributes, "stage")),
+              ]),
+            ]),
+            h(
+              "div",
+              {
+                class: "moisture-dial",
+                style: {
+                  background: `conic-gradient(#315d3b ${moisture * 3.6}deg, #ded8bd 0deg)`,
+                },
+              },
+              [h("span", [h("strong", `${moisture}%`), h("small", "土壤含水率")])],
+            ),
+          ]),
+          h("div", { class: "field-condition" }, [
+            h("span", conditionLabels[condition] ?? condition),
+            slots.default?.(),
+          ]),
+        ],
+      );
+    };
+  },
+});
+
+const MachineInspection = defineComponent({
+  props: sharedProps,
+  setup(props, { slots }) {
+    return () => {
+      const attributes = props.attributes;
+      const state = stringAttribute(attributes, "state") ?? "normal";
+      const stateLabels: Record<string, string> = {
+        normal: "RUN",
+        attention: "CHECK",
+        stop: "LOCKOUT",
+      };
+      return h(
+        "article",
+        { class: "machine-inspection", "data-state": state, "data-status": props.status },
+        [
+          h("header", [
+            h("span", `ASSET / ${stringAttribute(attributes, "asset")}`),
+            h("b", stateLabels[state] ?? state),
+          ]),
+          h("div", { class: "machine-grid" }, [
+            h("div", { class: "machine-reading" }, [
+              h("small", "MEASURED VALUE"),
+              h("strong", `${numberAttribute(attributes, "reading")}`),
+              h("span", stringAttribute(attributes, "unit")),
+            ]),
+            h("dl", [
+              h("div", [h("dt", "生产线"), h("dd", stringAttribute(attributes, "line"))]),
+              h("div", [h("dt", "点检时间"), h("dd", stringAttribute(attributes, "checkedAt"))]),
+            ]),
+          ]),
+          h("div", { class: "machine-note" }, slots.default?.()),
+        ],
+      );
+    };
+  },
+});
+
+const ThreatFinding = defineComponent({
+  props: sharedProps,
+  setup(props, { slots }) {
+    return () => {
+      const attributes = props.attributes;
+      const severity = stringAttribute(attributes, "severity");
+      return h(
+        "article",
+        { class: "threat-finding", "data-severity": severity, "data-status": props.status },
+        [
+          h("header", [
+            h("span", { class: "terminal-prompt" }, "$"),
+            h("strong", stringAttribute(attributes, "incidentId")),
+            h("b", severity),
+          ]),
+          h("div", { class: "threat-meta" }, [
+            h("span", [h("small", "PHASE"), stringAttribute(attributes, "phase")]),
+            h("span", [h("small", "ASSET"), stringAttribute(attributes, "asset")]),
+            h("time", [h("small", "OBSERVED"), stringAttribute(attributes, "observedAt")]),
+          ]),
+          h("div", { class: "threat-evidence" }, slots.default?.()),
+        ],
+      );
+    };
+  },
+});
+
 function trendComponent(direction: "increase" | "decrease") {
   return defineComponent({
     props: sharedProps,
@@ -266,6 +421,10 @@ export const semanticComponents: SemanticComponentMap = {
   milestone: sceneContainer("milestone"),
   incident: sceneContainer("incident"),
   evidence: sceneContainer("evidence"),
+  clinicalResult: ClinicalResult,
+  fieldObservation: FieldObservation,
+  machineInspection: MachineInspection,
+  threatFinding: ThreatFinding,
   increase: trendComponent("increase"),
   decrease: trendComponent("decrease"),
   status: Status,

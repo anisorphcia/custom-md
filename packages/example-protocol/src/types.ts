@@ -13,3 +13,7 @@ export type GuidanceAttributes = InferNodeAttributes<DemoProtocol, "guidance">;
 export type MilestoneAttributes = InferNodeAttributes<DemoProtocol, "milestone">;
 export type IncidentAttributes = InferNodeAttributes<DemoProtocol, "incident">;
 export type EvidenceAttributes = InferNodeAttributes<DemoProtocol, "evidence">;
+export type ClinicalResultAttributes = InferNodeAttributes<DemoProtocol, "clinicalResult">;
+export type FieldObservationAttributes = InferNodeAttributes<DemoProtocol, "fieldObservation">;
+export type MachineInspectionAttributes = InferNodeAttributes<DemoProtocol, "machineInspection">;
+export type ThreatFindingAttributes = InferNodeAttributes<DemoProtocol, "threatFinding">;

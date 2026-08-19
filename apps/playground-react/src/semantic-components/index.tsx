@@ -137,6 +137,138 @@ function Evidence({ attributes, children }: SemanticComponentProps) {
   );
 }
 
+function ClinicalResult({ attributes, children, status }: SemanticComponentProps) {
+  const flag = stringAttribute(attributes, "flag");
+  const flagLabels = { normal: "参考范围内", high: "高于参考值", low: "低于参考值" } as const;
+  return (
+    <article className="clinical-result" data-flag={flag} data-status={status}>
+      <header>
+        <span className="clinical-mark" aria-hidden="true">
+          +
+        </span>
+        <div>
+          <small>LAB RESULT / 检验项目</small>
+          <strong>{stringAttribute(attributes, "test")}</strong>
+        </div>
+        <time>{stringAttribute(attributes, "collectedAt")}</time>
+      </header>
+      <div className="clinical-reading">
+        <strong>{numericAttribute(attributes, "value")}</strong>
+        <span>{stringAttribute(attributes, "unit")}</span>
+        <dl>
+          <div>
+            <dt>参考区间</dt>
+            <dd>{stringAttribute(attributes, "reference")}</dd>
+          </div>
+          <div>
+            <dt>结果标记</dt>
+            <dd>{flagLabels[flag as keyof typeof flagLabels] ?? flag}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="clinical-note">{children}</div>
+    </article>
+  );
+}
+
+function FieldObservation({ attributes, children, status }: SemanticComponentProps) {
+  const moisture = numericAttribute(attributes, "soilMoisture") ?? 0;
+  const condition = stringAttribute(attributes, "condition");
+  const conditionLabels = { optimal: "墒情适宜", watch: "持续观察", urgent: "立即处理" } as const;
+  return (
+    <article className="field-observation" data-condition={condition} data-status={status}>
+      <header>
+        <div>
+          <small>FIELD NOTE</small>
+          <strong>{stringAttribute(attributes, "field")}</strong>
+        </div>
+        <time>{stringAttribute(attributes, "observedAt")}</time>
+      </header>
+      <div className="field-dashboard">
+        <div className="crop-stage">
+          <span aria-hidden="true">⌁</span>
+          <div>
+            <small>{stringAttribute(attributes, "crop")}</small>
+            <strong>{stringAttribute(attributes, "stage")}</strong>
+          </div>
+        </div>
+        <div
+          className="moisture-dial"
+          style={{ background: `conic-gradient(#315d3b ${moisture * 3.6}deg, #ded8bd 0deg)` }}
+        >
+          <span>
+            <strong>{moisture}%</strong>
+            <small>土壤含水率</small>
+          </span>
+        </div>
+      </div>
+      <div className="field-condition">
+        <span>{conditionLabels[condition as keyof typeof conditionLabels] ?? condition}</span>
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function MachineInspection({ attributes, children, status }: SemanticComponentProps) {
+  const state = stringAttribute(attributes, "state");
+  const stateLabels = { normal: "RUN", attention: "CHECK", stop: "LOCKOUT" } as const;
+  return (
+    <article className="machine-inspection" data-state={state} data-status={status}>
+      <header>
+        <span>ASSET / {stringAttribute(attributes, "asset")}</span>
+        <b>{stateLabels[state as keyof typeof stateLabels] ?? state}</b>
+      </header>
+      <div className="machine-grid">
+        <div className="machine-reading">
+          <small>MEASURED VALUE</small>
+          <strong>{numericAttribute(attributes, "reading")}</strong>
+          <span>{stringAttribute(attributes, "unit")}</span>
+        </div>
+        <dl>
+          <div>
+            <dt>生产线</dt>
+            <dd>{stringAttribute(attributes, "line")}</dd>
+          </div>
+          <div>
+            <dt>点检时间</dt>
+            <dd>{stringAttribute(attributes, "checkedAt")}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="machine-note">{children}</div>
+    </article>
+  );
+}
+
+function ThreatFinding({ attributes, children, status }: SemanticComponentProps) {
+  const severity = stringAttribute(attributes, "severity");
+  return (
+    <article className="threat-finding" data-severity={severity} data-status={status}>
+      <header>
+        <span className="terminal-prompt">$</span>
+        <strong>{stringAttribute(attributes, "incidentId")}</strong>
+        <b>{severity}</b>
+      </header>
+      <div className="threat-meta">
+        <span>
+          <small>PHASE</small>
+          {stringAttribute(attributes, "phase")}
+        </span>
+        <span>
+          <small>ASSET</small>
+          {stringAttribute(attributes, "asset")}
+        </span>
+        <time>
+          <small>OBSERVED</small>
+          {stringAttribute(attributes, "observedAt")}
+        </time>
+      </div>
+      <div className="threat-evidence">{children}</div>
+    </article>
+  );
+}
+
 function Increase({ attributes, children, status }: SemanticComponentProps) {
   return (
     <span className="semantic-chip trend increase" data-status={status}>
@@ -211,6 +343,10 @@ export const semanticComponents: SemanticComponentMap = {
   milestone: Milestone,
   incident: Incident,
   evidence: Evidence,
+  clinicalResult: ClinicalResult,
+  fieldObservation: FieldObservation,
+  machineInspection: MachineInspection,
+  threatFinding: ThreatFinding,
   increase: Increase,
   decrease: Decrease,
   status: Status,

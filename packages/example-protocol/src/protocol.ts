@@ -126,6 +126,120 @@ export const demoProtocol = defineProtocol({
         ':::evidence{strength="strong" sample=1240 effect="+8.4%" confidenceInterval="95% CI 5.1–11.7%"}\n实验组转化率显著提升。\n:::',
       ],
     },
+    clinicalResult: {
+      kind: "container",
+      schema: z.object({
+        test: z.string(),
+        value: z.coerce.number(),
+        unit: z.string(),
+        reference: z.string(),
+        flag: z.enum(["normal", "high", "low"]),
+        collectedAt: z.string(),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render a clinical laboratory result with its reference interval and flag.",
+      usage:
+        "A supplied medical test result needs to be explained together with its unit, reference interval, and collection time.",
+      childrenDescription:
+        "A cautious interpretation of the result, relevant context, and an explicit reminder that clinical decisions require professional review.",
+      outputPriority: "recommended",
+      constraints: [
+        "Preserve the reported value, unit, reference interval, and collection time exactly.",
+        "The flag must reflect the supplied laboratory reference interval; do not diagnose a condition.",
+        "Do not present educational interpretation as a treatment recommendation.",
+      ],
+      examples: [
+        ':::clinicalResult{test="糖化血红蛋白" value=7.2 unit="%" reference="4.0–6.0" flag="high" collectedAt="2026-08-16 08:30"}\n该指标高于本次报告参考区间，建议结合既往趋势由专业人员复核。\n:::',
+      ],
+    },
+    fieldObservation: {
+      kind: "container",
+      schema: z.object({
+        field: z.string(),
+        crop: z.string(),
+        stage: z.string(),
+        soilMoisture: z.coerce.number().min(0).max(100),
+        condition: z.enum(["optimal", "watch", "urgent"]),
+        observedAt: z.string(),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render an agronomic field observation with crop stage and soil moisture.",
+      usage:
+        "A field inspection identifies a plot, crop growth stage, measured soil moisture, and an explicit operating condition.",
+      childrenDescription:
+        "Observed field conditions, likely operational impact, and the next inspection step.",
+      outputPriority: "recommended",
+      constraints: [
+        "soilMoisture is a measured percentage from 0 through 100, not an estimated value.",
+        "Use urgent only when the supplied observation calls for immediate field action.",
+        "Keep weather forecasts separate from observations made in the field.",
+      ],
+      examples: [
+        ':::fieldObservation{field="东区 3 号地" crop="冬小麦" stage="灌浆期" soilMoisture=18 condition="watch" observedAt="2026-08-18 06:40"}\n表层墒情偏低，建议复核未来降水后安排灌溉窗口。\n:::',
+      ],
+    },
+    machineInspection: {
+      kind: "container",
+      schema: z.object({
+        asset: z.string(),
+        line: z.string(),
+        reading: z.coerce.number(),
+        unit: z.string(),
+        state: z.enum(["normal", "attention", "stop"]),
+        checkedAt: z.string(),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description: "Render an industrial equipment inspection reading as a maintenance record.",
+      usage:
+        "A named asset has a measured reading, production line, inspection time, and explicit operating state.",
+      childrenDescription:
+        "Inspection evidence, operational impact, and the required maintenance response.",
+      outputPriority: "recommended",
+      constraints: [
+        "Preserve the asset id, reading, unit, and inspection time exactly.",
+        "Use stop only when the source explicitly requires shutdown or lockout.",
+        "Do not invent a safety threshold that is absent from the source.",
+      ],
+      examples: [
+        ':::machineInspection{asset="CNC-102" line="A-03" reading=86 unit="°C" state="attention" checkedAt="2026-08-18 14:20"}\n主轴温度高于班组关注线，需检查冷却液循环。\n:::',
+      ],
+    },
+    threatFinding: {
+      kind: "container",
+      schema: z.object({
+        incidentId: z.string(),
+        severity: z.enum(["critical", "high", "medium", "low"]),
+        phase: z.enum([
+          "initial-access",
+          "execution",
+          "persistence",
+          "lateral-movement",
+          "exfiltration",
+          "contained",
+        ]),
+        asset: z.string(),
+        observedAt: z.string(),
+      }),
+      fallback: "blockquote",
+      renderPending: true,
+      description:
+        "Render a cybersecurity investigation finding with attack phase and asset scope.",
+      usage:
+        "A security investigation has an explicit incident id, severity, observed phase, affected asset, and timestamp.",
+      childrenDescription: "Observed evidence, containment status, and the next verification step.",
+      outputPriority: "recommended",
+      constraints: [
+        "Use only the severity and attack phase established by the supplied evidence.",
+        "Preserve timestamps and asset identifiers exactly.",
+        "Distinguish an observation from a confirmed compromise and do not invent indicators.",
+      ],
+      examples: [
+        ':::threatFinding{incidentId="IR-2026-0819" severity="high" phase="lateral-movement" asset="prod-db-07" observedAt="2026-08-19 02:14 CST"}\n检测到异常服务账号访问，相关凭据已轮换并隔离源主机。\n:::',
+      ],
+    },
     increase: {
       kind: "inline",
       schema: trendSchema,

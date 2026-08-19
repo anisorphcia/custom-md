@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AstPatch, SemanticActionRequest, StreamingMode } from "@semantic-md/core";
-import { demoProtocol, scenarios } from "@semantic-md/example-protocol";
+import { demoProtocol, scenarioLabels, scenarios } from "@semantic-md/example-protocol";
 import { generateProtocolPrompt } from "@semantic-md/protocol";
 import { SemanticMarkdown, useSemanticMarkdown } from "@semantic-md/vue";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
@@ -278,7 +278,9 @@ onBeforeUnmount(stop);
         <label>
           场景
           <select v-model="scenario">
-            <option v-for="(_, name) in scenarios" :key="name" :value="name">{{ name }}</option>
+            <option v-for="(_, name) in scenarios" :key="name" :value="name">
+              {{ scenarioLabels[name] }}
+            </option>
           </select>
         </label>
         <label>
@@ -323,7 +325,11 @@ onBeforeUnmount(stop);
       <section class="debug-panel">
         <h2>渲染结果</h2>
         <div class="panel-body">
-          <div class="render-surface" data-testid="render-output">
+          <div
+            class="render-surface"
+            :data-scene="source === 'simulation' ? scenario : 'openai'"
+            data-testid="render-output"
+          >
             <SemanticMarkdown
               :document="document"
               :protocol="demoProtocol"

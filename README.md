@@ -80,6 +80,22 @@ POST /api/openai/stream  # JSON: { "prompt": "你的问题" }
 GET /api/scenarios
 ```
 
+内置模拟场景包括：
+
+| 场景 key | 内容 |
+| --- | --- |
+| `finance` | 财经 · 财报速览 |
+| `medical` | 医疗 · 检验随访 |
+| `agriculture` | 农业 · 田间观测 |
+| `manufacturing` | 制造 · 设备点检 |
+| `security` | 安全 · 威胁调查 |
+| `incident` | 科技 · 线上事故 |
+| `research` | 科研 · 实验证据 |
+| `delivery` | 研发 · 项目交付 |
+
+这些场景不仅更换内容或颜色，还通过不同的语义节点、组件信息结构和文档级样式表达
+行业差异。节点属性、示例语法与设计说明见[行业场景与视觉设计](docs/industry-scenarios.md)。
+
 ## 定义协议
 
 ```ts
@@ -173,4 +189,6 @@ Markdown 解析，永不执行 JSX、Vue Template、HTML 或 action。
 更详细的设计见[自定义 Protocol 接入指南](docs/custom-protocol.md)、
 [架构](docs/architecture.md)、[协议参考](docs/protocol.md)、[流式策略](docs/streaming.md)、
 [API](docs/api.md)、[架构 Review 与优化路线](docs/architecture-review.md)和
-[项目结构](docs/directory-tree.md)。参与仓库开发请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+[项目结构](docs/directory-tree.md)。行业示例见
+[行业场景与视觉设计](docs/industry-scenarios.md)。参与仓库开发请阅读
+[CONTRIBUTING.md](CONTRIBUTING.md)。

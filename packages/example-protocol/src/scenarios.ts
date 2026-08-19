@@ -101,6 +101,98 @@ export const researchScenario = `# A/B 实验结论
 :::
 `;
 
+export const medicalScenario = `# 代谢指标随访摘要
+
+> 就诊目的：复核近三个月血糖控制情况。本页仅用于解释检验信息，不能替代临床诊断。
+
+## 本次检验
+
+:::clinicalResult{test="糖化血红蛋白" value=7.2 unit="%" reference="4.0–6.0" flag="high" collectedAt="2026-08-16 08:30"}
+该指标反映近 2–3 个月平均血糖水平，本次结果高于检验报告参考区间。需要结合既往结果、用药和生活方式，由专业人员综合判断。
+:::
+
+:::clinicalResult{test="估算肾小球滤过率" value=92 unit="mL/min/1.73m²" reference="≥ 90" flag="normal" collectedAt="2026-08-16 08:30"}
+本次结果位于报告参考范围内。单次结果不能替代连续趋势观察。
+:::
+
+## 随访要点
+
+- 带上近三个月家庭血糖记录。
+- 记录低血糖症状及发生时间。
+- 不要根据本页内容自行调整药物剂量。
+
+资料来源见 :citation[检验报告 LAB-0816]{id="lab-0816" page=1}。
+`;
+
+export const agricultureScenario = `# 夏玉米田间观测日报
+
+观测批次 **AGR-0819-AM** · 无人机巡田与人工取样结果汇总
+
+## 地块状态
+
+:::fieldObservation{field="北坡 12 号田" crop="夏玉米" stage="大喇叭口期" soilMoisture=24 condition="optimal" observedAt="2026-08-19 06:20"}
+叶色均匀，群体长势整齐；根层墒情满足当前生育期需求，维持现有巡检节奏。
+:::
+
+:::fieldObservation{field="河西 7 号田" crop="夏玉米" stage="大喇叭口期" soilMoisture=16 condition="watch" observedAt="2026-08-19 06:45"}
+西南角轻度卷叶，表层墒情偏低。建议在下一次灌溉前复测 20 cm 土层含水率，并核查滴灌末端压力。
+:::
+
+## 今日农事窗口
+
+未来作业重点是复核河西地块灌溉条件，避免仅凭表层观测扩大灌溉范围。
+
+:action[查看地块巡检明细]{name="open-detail" targetId="field-survey-0819"}
+`;
+
+export const manufacturingScenario = `# A 线设备点检交接单
+
+**班次：** 夜班 → 早班　　**工单：** WO-2026-0819-04
+
+## 关键设备读数
+
+:::machineInspection{asset="CNC-102" line="A-03" reading=86 unit="°C" state="attention" checkedAt="2026-08-19 07:40"}
+主轴温度达到班组关注线。设备暂可空载运行，交班后应检查冷却液液位、循环泵和过滤器压差。
+:::
+
+:::machineInspection{asset="AIR-04" line="A-01" reading=0.68 unit="MPa" state="normal" checkedAt="2026-08-19 07:48"}
+压缩空气主管压力稳定，排水器动作正常，未发现持续泄漏声。
+:::
+
+:::machineInspection{asset="GUARD-17" line="A-03" reading=0 unit="mm" state="stop" checkedAt="2026-08-19 07:55"}
+安全门联锁销未完全复位。恢复生产前必须执行锁定挂牌并由维修与班组长共同确认。
+:::
+
+:action[打开维修工单]{name="open-detail" targetId="WO-2026-0819-04"}
+`;
+
+export const securityScenario = `# 安全事件调查简报
+
+事件窗口：\`2026-08-19 01:52–03:10 CST\`　调查状态：:status[遏制后复核]{value="warning"}
+
+## 证据链
+
+:::threatFinding{incidentId="IR-2026-0819" severity="high" phase="initial-access" asset="vpn-gateway-02" observedAt="2026-08-19 01:52 CST"}
+同一服务账号在不常见自治域完成认证。现有证据确认异常登录，但尚不能确认凭据获取方式。
+:::
+
+:::threatFinding{incidentId="IR-2026-0819" severity="critical" phase="lateral-movement" asset="prod-db-07" observedAt="2026-08-19 02:14 CST"}
+数据库主机收到来自办公网终端的异常远程管理请求。源终端已隔离，服务账号凭据已轮换。
+:::
+
+:::threatFinding{incidentId="IR-2026-0819" severity="medium" phase="contained" asset="corp-ws-184" observedAt="2026-08-19 03:10 CST"}
+EDR 隔离完成，当前未观察到新的横向连接。仍需核查 24 小时身份与数据库审计日志。
+:::
+
+## 下一步
+
+1. 保全 VPN、身份平台与数据库审计日志。
+2. 验证轮换后的服务账号仅保留必要权限。
+3. 对相同指标执行全网回溯，不将“未命中”解释为“未受影响”。
+
+:action[打开事件时间线]{name="open-detail" targetId="IR-2026-0819"}
+`;
+
 export const malformedScenario = `# 错误恢复
 
 未闭合的 *斜体
@@ -173,12 +265,34 @@ export const scenarios = {
   delivery: deliveryScenario,
   incident: incidentScenario,
   research: researchScenario,
+  medical: medicalScenario,
+  agriculture: agricultureScenario,
+  manufacturing: manufacturingScenario,
+  security: securityScenario,
   malformed: malformedScenario,
   full: fullScenario,
   long: longScenario,
 } as const;
 
 export type ScenarioName = keyof typeof scenarios;
+
+export const scenarioLabels = {
+  basic: "基础 Markdown",
+  code: "代码示例",
+  table: "数据表格",
+  semantic: "语义节点",
+  finance: "财经 · 财报速览",
+  delivery: "研发 · 项目交付",
+  incident: "科技 · 线上事故",
+  research: "科研 · 实验证据",
+  medical: "医疗 · 检验随访",
+  agriculture: "农业 · 田间观测",
+  manufacturing: "制造 · 设备点检",
+  security: "安全 · 威胁调查",
+  malformed: "错误恢复",
+  full: "完整能力演示",
+  long: "长文档压测",
+} as const satisfies Record<ScenarioName, string>;
 
 export function getScenario(name: string | undefined): {
   name: ScenarioName;

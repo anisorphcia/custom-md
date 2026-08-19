@@ -1,5 +1,5 @@
 import type { AstPatch, Diagnostic, SemanticActionRequest, StreamingMode } from "@semantic-md/core";
-import { demoProtocol, scenarios } from "@semantic-md/example-protocol";
+import { demoProtocol, scenarioLabels, scenarios } from "@semantic-md/example-protocol";
 import { generateProtocolPrompt } from "@semantic-md/protocol";
 import { SemanticMarkdown, useSemanticMarkdown } from "@semantic-md/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -335,7 +335,9 @@ export default function App() {
                 onChange={(event) => setScenario(event.target.value as ScenarioName)}
               >
                 {Object.keys(scenarios).map((name) => (
-                  <option key={name}>{name}</option>
+                  <option key={name} value={name}>
+                    {scenarioLabels[name as ScenarioName]}
+                  </option>
                 ))}
               </select>
             </label>
@@ -416,7 +418,11 @@ export default function App() {
 
       <section className="workspace">
         <DebugPanel title="渲染结果">
-          <div className="render-surface" data-testid="render-output">
+          <div
+            className="render-surface"
+            data-scene={source === "simulation" ? scenario : "openai"}
+            data-testid="render-output"
+          >
             <SemanticMarkdown
               document={document}
               protocol={demoProtocol}

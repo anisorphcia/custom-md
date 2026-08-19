@@ -1,6 +1,7 @@
 export { demoProtocol } from "./protocol";
 export type { ScenarioName } from "./scenarios";
 export {
+  agricultureScenario,
   basicScenario,
   codeScenario,
   deliveryScenario,
@@ -10,22 +11,30 @@ export {
   incidentScenario,
   longScenario,
   malformedScenario,
+  manufacturingScenario,
+  medicalScenario,
   researchScenario,
+  scenarioLabels,
   scenarios,
+  securityScenario,
   semanticScenario,
   tableScenario,
 } from "./scenarios";
 export type {
   ActionAttributes,
   CitationAttributes,
+  ClinicalResultAttributes,
   DecreaseAttributes,
   DemoProtocol,
   EvidenceAttributes,
+  FieldObservationAttributes,
   FinancialMetricAttributes,
   GuidanceAttributes,
   IncidentAttributes,
   IncreaseAttributes,
+  MachineInspectionAttributes,
   MilestoneAttributes,
   RiskAttributes,
   StatusAttributes,
+  ThreatFindingAttributes,
 } from "./types";
